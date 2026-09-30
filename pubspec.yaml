@@ -1,0 +1,24 @@
+name: geographic_duel
+description: Geographic Duel — approved Light Atlas design, native Flutter prototype.
+publish_to: none
+version: 0.1.0+1
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.2.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/globe.svg
+    - assets/world-map.json
+    - assets/scene.jpg
+  fonts:
+    - family: AtlasSerif
+      fonts:
+        - asset: assets/Lora.ttf
