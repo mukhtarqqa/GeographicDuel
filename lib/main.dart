@@ -12,14 +12,18 @@ import 'features/match_result/match_result_screen.dart';
 import 'features/leaderboard/leaderboard_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/widgets/glass_container.dart';
+import 'features/splash/splash_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const GeographicDuelApp());
 }
 
 class GeographicDuelApp extends StatelessWidget {
-  const GeographicDuelApp({super.key});
+  final bool testMode;
+  const GeographicDuelApp({super.key, this.testMode = false});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +31,7 @@ class GeographicDuelApp extends StatelessWidget {
       title: 'Geographic Duel',
       debugShowCheckedModeBanner: false,
       theme: AtlasTheme.theme,
-      home: const DuelShell(),
+      home: testMode ? const DuelShell() : const SplashScreen(),
     );
   }
 }
@@ -54,7 +58,12 @@ class _DuelShellState extends State<DuelShell> {
   bool _reduceMotion = false;
 
   // Active Match Data
-  late PlayerState _player;
+  PlayerState _player = PlayerState(
+    id: 'local_user',
+    name: 'Загрузка...',
+    rating: 1240,
+    health: 6000,
+  );
   PlayerState? _opponent;
   String _matchId = '';
   int _roundNumber = 1;
@@ -63,12 +72,23 @@ class _DuelShellState extends State<DuelShell> {
   @override
   void initState() {
     super.initState();
-    _player = PlayerState(
-      id: 'local_user',
-      name: 'Мухтар',
-      rating: 1240,
-      health: 6000,
-    );
+    _initUser();
+  }
+
+  Future<void> _initUser() async {
+    final user = await FirebaseDuelService.instance.getCurrentUser();
+    if (user != null && mounted) {
+      setState(() {
+        _player = user;
+      });
+    } else {
+      _player = PlayerState(
+        id: 'local_user',
+        name: 'Исследователь',
+        rating: 1240,
+        health: 6000,
+      );
+    }
   }
 
   void _startMatchmaking() {
