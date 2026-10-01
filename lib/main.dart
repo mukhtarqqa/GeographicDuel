@@ -3,6 +3,8 @@ import 'core/theme/atlas_theme.dart';
 import 'domain/models/player_state.dart';
 import 'domain/models/round_result.dart';
 import 'data/locations_catalog.dart';
+import 'data/external_locations_service.dart';
+import 'domain/models/location_item.dart';
 import 'data/firebase/firebase_duel_service.dart';
 import 'features/lobby/lobby_screen.dart';
 import 'features/matchmaking/matchmaking_screen.dart';
@@ -68,6 +70,7 @@ class _DuelShellState extends State<DuelShell> {
   String _matchId = '';
   int _roundNumber = 1;
   DuelRoundResult? _lastRoundResult;
+  LocationItem _currentLocation = LocationsCatalog.items.first;
 
   @override
   void initState() {
@@ -97,14 +100,20 @@ class _DuelShellState extends State<DuelShell> {
     });
 
     FirebaseDuelService.instance.startMatchmaking(
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent) async {
         if (!mounted || !_inMatchmaking) return;
+
+        final newLocation = await ExternalLocationsService.getRandomLocation();
+
+        if (!mounted || !_inMatchmaking) return;
+
         setState(() {
           _matchId = matchId;
           _opponent = opponent;
           _roundNumber = 1;
           _player.health = 6000;
           _opponent!.health = 6000;
+          _currentLocation = newLocation;
           _inMatchmaking = false;
           _inGame = true;
           _inRoundResult = false;
@@ -136,12 +145,17 @@ class _DuelShellState extends State<DuelShell> {
     });
   }
 
-  void _nextRound() {
-    setState(() {
-      _roundNumber++;
-      _inRoundResult = false;
-      _inGame = true;
-    });
+  Future<void> _nextRound() async {
+    final nextLocation = await ExternalLocationsService.getRandomLocation();
+
+    if (mounted) {
+      setState(() {
+        _roundNumber++;
+        _currentLocation = nextLocation;
+        _inRoundResult = false;
+        _inGame = true;
+      });
+    }
   }
 
   void _finishMatch() {
@@ -183,7 +197,7 @@ class _DuelShellState extends State<DuelShell> {
         matchId: _matchId,
         player: _player,
         opponent: _opponent!,
-        location: LocationsCatalog.getForRound(_roundNumber),
+        location: _currentLocation,
         roundNumber: _roundNumber,
         solid: _solid,
         onRoundFinished: _onRoundFinished,
