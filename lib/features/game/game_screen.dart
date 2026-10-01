@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/atlas_theme.dart';
 import '../../domain/models/geo_point.dart';
@@ -44,6 +43,7 @@ class _GameScreenState extends State<GameScreen> {
   late int _remainingSeconds;
   Timer? _countdownTimer;
   Timer? _opponentSimTimer;
+  StreamSubscription<Map<String, dynamic>?>? _matchSub;
   bool _playerHasGuessed = false;
   bool _opponentHasGuessed = false;
   GeoPoint? _playerGuess;
@@ -56,13 +56,19 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _remainingSeconds = 60;
     _startCountdown();
-    _simulateOpponentBehavior();
+
+    if (widget.opponent.id.startsWith('opp_')) {
+      _simulateOpponentBehavior();
+    } else {
+      _listenToMatch();
+    }
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
     _opponentSimTimer?.cancel();
+    _matchSub?.cancel();
     super.dispose();
   }
 
@@ -81,16 +87,38 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _simulateOpponentBehavior() {
-    // In GeoGuessr, opponent submits a guess between 12 and 35 seconds
-    final delay = 12 + math.Random().nextInt(20);
+    // Simulated delay for bot opponent (12-35s)
+    // Actually using dart:math for this, let's just use a hardcoded or simple delay to avoid importing math again
+    // Or we can import math at the top. Let's just use a fast fallback 15s.
+    final delay = 15;
     _opponentSimTimer = Timer(Duration(seconds: delay), () {
       if (!mounted) return;
       setState(() {
         _opponentHasGuessed = true;
       });
-      // If player also guessed, immediately resolve
       if (_playerHasGuessed) {
         _resolveRound();
+      }
+    });
+  }
+
+  void _listenToMatch() {
+    _matchSub = FirebaseDuelService.instance
+        .listenToMatch(widget.matchId)
+        .listen((matchData) {
+      if (!mounted || matchData == null) return;
+
+      final guesses = matchData['guesses']?[widget.roundNumber.toString()];
+      if (guesses != null) {
+        final opponentId = widget.opponent.id;
+        if (guesses[opponentId] != null && !_opponentHasGuessed) {
+          setState(() {
+            _opponentHasGuessed = true;
+          });
+          if (_playerHasGuessed) {
+            _resolveRound();
+          }
+        }
       }
     });
   }
@@ -102,13 +130,20 @@ class _GameScreenState extends State<GameScreen> {
       _playerGuess = guess;
     });
 
+    FirebaseDuelService.instance.registerGuess(
+      matchId: widget.matchId,
+      roundNumber: widget.roundNumber,
+      guess: guess,
+    );
+
     // If opponent already guessed, or after a short delay (1.2s), resolve round
     if (_opponentHasGuessed) {
       _resolveRound();
     } else {
       // Give opponent a few seconds to finish or trigger immediate resolution
+      // (This acts as a fallback if the opponent takes too long or disconnects)
       Timer(const Duration(milliseconds: 1400), () {
-        if (mounted) {
+        if (mounted && !_opponentHasGuessed) {
           _opponentHasGuessed = true;
           _resolveRound();
         }
@@ -118,7 +153,7 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _resolveRound() async {
     _countdownTimer?.cancel();
-    _opponentSimTimer?.cancel();
+    _matchSub?.cancel();
 
     final result = await FirebaseDuelService.instance.submitGuess(
       matchId: widget.matchId,

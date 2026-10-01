@@ -12,9 +12,15 @@ import 'features/match_result/match_result_screen.dart';
 import 'features/leaderboard/leaderboard_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/widgets/glass_container.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init failed (expected in dummy setup): $e');
+  }
   runApp(const GeographicDuelApp());
 }
 
