@@ -49,6 +49,11 @@ class MockDuelService implements IDuelService {
   void cancelMatchmaking() {}
 
   @override
+  Stream<bool> listenToOpponentGuess(String matchId, int roundNumber) {
+    return Stream.value(false);
+  }
+
+  @override
   Future<DuelRoundResult> submitGuess({
     required String matchId,
     required int roundNumber,

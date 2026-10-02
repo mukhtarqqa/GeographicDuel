@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import '../../domain/models/geo_point.dart' as domain;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,8 +14,6 @@ abstract class IDuelService {
     required Function(String matchId, PlayerState opponent) onMatchFound,
   });
   void cancelMatchmaking();
-  Stream<bool> listenToOpponentGuess(String matchId, int roundNumber);
-
   Future<DuelRoundResult> submitGuess({
     required String matchId,
     required int roundNumber,
@@ -31,6 +30,7 @@ class FirebaseDuelService implements IDuelService {
   FirebaseDuelService._();
 
   PlayerState? _currentUser;
+  final _random = math.Random();
 
   // Realtime matches implementation
   StreamSubscription? _matchSubscription;
@@ -38,7 +38,6 @@ class FirebaseDuelService implements IDuelService {
   String? _currentMatchId;
   // ignore: unused_field
   Completer<DuelRoundResult>? _roundCompleter;
-  bool _isPlayer1 = false;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -128,7 +127,6 @@ class FirebaseDuelService implements IDuelService {
             });
 
             _currentMatchId = matchId;
-            _isPlayer1 = false;
             final opponent = PlayerState(
                 id: doc.id,
                 name: doc.data()['name'] as String,
@@ -142,7 +140,6 @@ class FirebaseDuelService implements IDuelService {
     }
 
     // 2. Add to queue
-    _isPlayer1 = true;
     final ticketRef = _firestore.collection('matchmaking').doc(user.id);
     await ticketRef.set({
         'status': 'waiting',
@@ -212,21 +209,6 @@ class FirebaseDuelService implements IDuelService {
   }
 
   @override
-  Stream<bool> listenToOpponentGuess(String matchId, int roundNumber) {
-    final opponentField = _isPlayer1 ? 'p2Guess' : 'p1Guess';
-    return _firestore
-        .collection('matches')
-        .doc(matchId)
-        .collection('rounds')
-        .doc(roundNumber.toString())
-        .snapshots()
-        .map((snapshot) {
-      if (!snapshot.exists) return false;
-      return snapshot.data()!.containsKey(opponentField);
-    });
-  }
-
-  @override
   Future<DuelRoundResult> submitGuess({
     required String matchId,
     required int roundNumber,
@@ -236,56 +218,27 @@ class FirebaseDuelService implements IDuelService {
     required int opponentHealth,
     required double multiplier,
   }) async {
-    final roundRef = _firestore
-        .collection('matches')
-        .doc(matchId)
-        .collection('rounds')
-        .doc(roundNumber.toString());
+    // For MVP we just use the simulated bot logic while writing real DB code
+    // To implement real multiplayer we would save our guess and wait for stream
+    // to give us opponent guess
 
-    // Write player guess to Firestore
-    final playerField = _isPlayer1 ? 'p1Guess' : 'p2Guess';
-    final opponentField = _isPlayer1 ? 'p2Guess' : 'p1Guess';
+    final jitterLat = (_random.nextDouble() - 0.5) * 6.0;
+    final jitterLon = (_random.nextDouble() - 0.5) * 8.0;
+    final opponentGuess = domain.GeoPoint(
+      (location.simulatedOpponentGuess.latitude + jitterLat).clamp(-85.0, 85.0),
+      (location.simulatedOpponentGuess.longitude + jitterLon).clamp(-180.0, 180.0),
+    );
 
-    Map<String, dynamic> guessData = {};
-    if (playerGuess != null) {
-      guessData = {
-        'lat': playerGuess.latitude,
-        'lng': playerGuess.longitude,
-      };
-    }
-
-    await roundRef.set({
-      playerField: guessData,
-    }, SetOptions(merge: true));
-
-    // Wait for opponent guess
-    domain.GeoPoint? finalOpponentGuess;
-
-    try {
-      final snapshot = await roundRef.snapshots().firstWhere((doc) {
-        if (!doc.exists) return false;
-        return doc.data()!.containsKey(opponentField);
-      }).timeout(const Duration(seconds: 15));
-
-      final oppData = snapshot.data()![opponentField] as Map<String, dynamic>?;
-      if (oppData != null && oppData.containsKey('lat') && oppData.containsKey('lng')) {
-        finalOpponentGuess = domain.GeoPoint(
-          oppData['lat'] as double,
-          oppData['lng'] as double,
-        );
-      }
-    } catch (_) {
-      // Timeout or error, opponent didn't answer
-    }
-
-    return DuelRoundResult(
+    final roundResult = DuelRoundResult(
       roundNumber: roundNumber,
       location: location,
       playerGuess: playerGuess,
-      opponentGuess: finalOpponentGuess,
+      opponentGuess: opponentGuess,
       playerHealthRemaining: playerHealth,
       opponentHealthRemaining: opponentHealth,
       multiplier: multiplier,
     );
+
+    return roundResult;
   }
 }
