@@ -14,6 +14,17 @@ abstract class IDuelService {
     required Function(String matchId, PlayerState opponent) onMatchFound,
   });
   void cancelMatchmaking();
+  Future<void> markPlayerGuessed({
+    required String matchId,
+    required int roundNumber,
+    required domain.GeoPoint guess,
+  });
+  void listenToOpponentGuess({
+    required String matchId,
+    required int roundNumber,
+    required void Function() onOpponentGuessed,
+  });
+  void stopListeningToOpponentGuess();
   Future<DuelRoundResult> submitGuess({
     required String matchId,
     required int roundNumber,
@@ -34,9 +45,9 @@ class FirebaseDuelService implements IDuelService {
 
   // Realtime matches implementation
   StreamSubscription? _matchSubscription;
-  // ignore: unused_field
+  StreamSubscription? _opponentGuessSubscription;
+  bool _isPlayer1 = true;
   String? _currentMatchId;
-  // ignore: unused_field
   Completer<DuelRoundResult>? _roundCompleter;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -127,6 +138,7 @@ class FirebaseDuelService implements IDuelService {
             });
 
             _currentMatchId = matchId;
+            _isPlayer1 = false;
             final opponent = PlayerState(
                 id: doc.id,
                 name: doc.data()['name'] as String,
@@ -163,10 +175,11 @@ class FirebaseDuelService implements IDuelService {
                 if (!matchDoc.exists) return;
                 final matchData = matchDoc.data()!;
 
-                final isPlayer1 = matchData['player1'] == user.id;
-                final oppId = isPlayer1 ? matchData['player2'] : matchData['player1'];
-                final oppName = isPlayer1 ? matchData['player2Name'] : matchData['player1Name'];
-                final oppRating = isPlayer1 ? matchData['player2Rating'] : matchData['player1Rating'];
+                _isPlayer1 = matchData['player1'] == user.id;
+
+                final oppId = _isPlayer1 ? matchData['player2'] : matchData['player1'];
+                final oppName = _isPlayer1 ? matchData['player2Name'] : matchData['player1Name'];
+                final oppRating = _isPlayer1 ? matchData['player2Rating'] : matchData['player1Rating'];
 
                 final opponent = PlayerState(
                     id: oppId,
@@ -190,8 +203,7 @@ class FirebaseDuelService implements IDuelService {
                    final data = change.doc.data()!;
                    if (data.containsKey('p1Guess') && data.containsKey('p2Guess')) {
                        // Both guesses are in!
-                       // Process results if waiting
-                       // This is simplified, usually you handle this with cloud functions
+                       // This can be used for generic processing, but handled specifically per round below
                    }
                }
            }
@@ -202,10 +214,70 @@ class FirebaseDuelService implements IDuelService {
   void cancelMatchmaking() {
     _matchSubscription?.cancel();
     _matchSubscription = null;
+    _opponentGuessSubscription?.cancel();
+    _opponentGuessSubscription = null;
 
     if (_currentUser != null) {
         _firestore.collection('matchmaking').doc(_currentUser!.id).delete().catchError((_) {});
     }
+  }
+
+  @override
+  Future<void> markPlayerGuessed({
+    required String matchId,
+    required int roundNumber,
+    required domain.GeoPoint guess,
+  }) async {
+    final roundRef = _firestore
+        .collection('matches')
+        .doc(matchId)
+        .collection('rounds')
+        .doc('round_$roundNumber');
+
+    final guessData = {
+      'lat': guess.latitude,
+      'lng': guess.longitude,
+      'timestamp': FieldValue.serverTimestamp(),
+    };
+
+    if (_isPlayer1) {
+      await roundRef.set({'p1Guess': guessData}, SetOptions(merge: true));
+    } else {
+      await roundRef.set({'p2Guess': guessData}, SetOptions(merge: true));
+    }
+  }
+
+  @override
+  void listenToOpponentGuess({
+    required String matchId,
+    required int roundNumber,
+    required void Function() onOpponentGuessed,
+  }) {
+    stopListeningToOpponentGuess();
+
+    final roundRef = _firestore
+        .collection('matches')
+        .doc(matchId)
+        .collection('rounds')
+        .doc('round_$roundNumber');
+
+    _opponentGuessSubscription = roundRef.snapshots().listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data();
+        if (data != null) {
+          final opponentGuessKey = _isPlayer1 ? 'p2Guess' : 'p1Guess';
+          if (data.containsKey(opponentGuessKey)) {
+            onOpponentGuessed();
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void stopListeningToOpponentGuess() {
+    _opponentGuessSubscription?.cancel();
+    _opponentGuessSubscription = null;
   }
 
   @override
@@ -218,22 +290,96 @@ class FirebaseDuelService implements IDuelService {
     required int opponentHealth,
     required double multiplier,
   }) async {
-    // For MVP we just use the simulated bot logic while writing real DB code
-    // To implement real multiplayer we would save our guess and wait for stream
-    // to give us opponent guess
+    final roundRef = _firestore
+        .collection('matches')
+        .doc(matchId)
+        .collection('rounds')
+        .doc('round_$roundNumber');
 
-    final jitterLat = (_random.nextDouble() - 0.5) * 6.0;
-    final jitterLon = (_random.nextDouble() - 0.5) * 8.0;
-    final opponentGuess = domain.GeoPoint(
-      (location.simulatedOpponentGuess.latitude + jitterLat).clamp(-85.0, 85.0),
-      (location.simulatedOpponentGuess.longitude + jitterLon).clamp(-180.0, 180.0),
-    );
+    if (playerGuess != null) {
+      // Just to be sure it's saved (might have been saved by markPlayerGuessed)
+      final guessData = {
+        'lat': playerGuess.latitude,
+        'lng': playerGuess.longitude,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+      if (_isPlayer1) {
+        await roundRef.set({'p1Guess': guessData}, SetOptions(merge: true));
+      } else {
+        await roundRef.set({'p2Guess': guessData}, SetOptions(merge: true));
+      }
+    } else {
+      // No guess submitted in time
+      final guessData = {
+        'lat': null,
+        'lng': null,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+      if (_isPlayer1) {
+        await roundRef.set({'p1Guess': guessData}, SetOptions(merge: true));
+      } else {
+        await roundRef.set({'p2Guess': guessData}, SetOptions(merge: true));
+      }
+    }
+
+    // Wait for opponent guess
+    domain.GeoPoint? finalOpponentGuess;
+
+    try {
+      final docSnapshot = await roundRef.get();
+      final data = docSnapshot.data() ?? {};
+      final opponentGuessKey = _isPlayer1 ? 'p2Guess' : 'p1Guess';
+
+      if (data.containsKey(opponentGuessKey)) {
+        final oppData = data[opponentGuessKey];
+        if (oppData != null && oppData['lat'] != null && oppData['lng'] != null) {
+          finalOpponentGuess = domain.GeoPoint(oppData['lat'], oppData['lng']);
+        }
+      } else {
+        // Wait for it via stream
+        final completer = Completer<domain.GeoPoint?>();
+        final sub = roundRef.snapshots().listen((snap) {
+          if (snap.exists) {
+            final snapData = snap.data();
+            if (snapData != null && snapData.containsKey(opponentGuessKey)) {
+              final oppData = snapData[opponentGuessKey];
+              if (oppData != null && oppData['lat'] != null && oppData['lng'] != null) {
+                completer.complete(domain.GeoPoint(oppData['lat'], oppData['lng']));
+              } else {
+                completer.complete(null);
+              }
+            }
+          }
+        });
+
+        // Timeout in case opponent drops
+        finalOpponentGuess = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => null,
+        ).whenComplete(() => sub.cancel());
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    // Stop listening just in case
+    stopListeningToOpponentGuess();
+
+    // If opponent didn't guess, simulate one for now to keep game going if they dropped
+    if (finalOpponentGuess == null) {
+       final jitterLat = (_random.nextDouble() - 0.5) * 6.0;
+       final jitterLon = (_random.nextDouble() - 0.5) * 8.0;
+       finalOpponentGuess = domain.GeoPoint(
+         (location.simulatedOpponentGuess.latitude + jitterLat).clamp(-85.0, 85.0),
+         (location.simulatedOpponentGuess.longitude + jitterLon).clamp(-180.0, 180.0),
+       );
+    }
 
     final roundResult = DuelRoundResult(
       roundNumber: roundNumber,
       location: location,
       playerGuess: playerGuess,
-      opponentGuess: opponentGuess,
+      opponentGuess: finalOpponentGuess,
       playerHealthRemaining: playerHealth,
       opponentHealthRemaining: opponentHealth,
       multiplier: multiplier,
