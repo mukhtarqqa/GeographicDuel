@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../../core/theme/atlas_theme.dart';
 import '../../domain/models/geo_point.dart';
@@ -43,10 +43,10 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late int _remainingSeconds;
   Timer? _countdownTimer;
-  Timer? _opponentSimTimer;
   bool _playerHasGuessed = false;
   bool _opponentHasGuessed = false;
   GeoPoint? _playerGuess;
+  bool _isResolving = false;
 
   double get _multiplier =>
       DuelCalculator.getMultiplierForRound(widget.roundNumber);
@@ -56,14 +56,33 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _remainingSeconds = 60;
     _startCountdown();
-    _simulateOpponentBehavior();
+
+    FirebaseDuelService.instance.listenToOpponentGuess(
+      matchId: widget.matchId,
+      roundNumber: widget.roundNumber,
+      onOpponentGuessed: _onOpponentGuessed,
+    );
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _opponentSimTimer?.cancel();
+    FirebaseDuelService.instance.stopListeningToOpponentGuess();
     super.dispose();
+  }
+
+  void _onOpponentGuessed() {
+    if (!mounted) return;
+    setState(() {
+      _opponentHasGuessed = true;
+      if (_remainingSeconds > 15) {
+        _remainingSeconds = 15;
+      }
+    });
+
+    if (_playerHasGuessed) {
+      _resolveRound();
+    }
   }
 
   void _startCountdown() {
@@ -80,45 +99,32 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _simulateOpponentBehavior() {
-    // In GeoGuessr, opponent submits a guess between 12 and 35 seconds
-    final delay = 12 + math.Random().nextInt(20);
-    _opponentSimTimer = Timer(Duration(seconds: delay), () {
-      if (!mounted) return;
-      setState(() {
-        _opponentHasGuessed = true;
-      });
-      // If player also guessed, immediately resolve
-      if (_playerHasGuessed) {
-        _resolveRound();
-      }
-    });
-  }
-
   void _onPlayerConfirmGuess(GeoPoint guess) {
     if (_playerHasGuessed) return;
     setState(() {
       _playerHasGuessed = true;
       _playerGuess = guess;
+      if (_remainingSeconds > 15) {
+        _remainingSeconds = 15;
+      }
     });
 
-    // If opponent already guessed, or after a short delay (1.2s), resolve round
+    FirebaseDuelService.instance.markPlayerGuessed(
+      matchId: widget.matchId,
+      roundNumber: widget.roundNumber,
+      guess: guess,
+    );
+
     if (_opponentHasGuessed) {
       _resolveRound();
-    } else {
-      // Give opponent a few seconds to finish or trigger immediate resolution
-      Timer(const Duration(milliseconds: 1400), () {
-        if (mounted) {
-          _opponentHasGuessed = true;
-          _resolveRound();
-        }
-      });
     }
   }
 
   Future<void> _resolveRound() async {
+    if (_isResolving) return;
+    _isResolving = true;
     _countdownTimer?.cancel();
-    _opponentSimTimer?.cancel();
+    FirebaseDuelService.instance.stopListeningToOpponentGuess();
 
     final result = await FirebaseDuelService.instance.submitGuess(
       matchId: widget.matchId,
