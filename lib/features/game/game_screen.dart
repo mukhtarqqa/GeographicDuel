@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/atlas_theme.dart';
 import '../../domain/models/geo_point.dart';
@@ -43,10 +42,10 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late int _remainingSeconds;
   Timer? _countdownTimer;
-  Timer? _opponentSimTimer;
   bool _playerHasGuessed = false;
   bool _opponentHasGuessed = false;
   GeoPoint? _playerGuess;
+  bool _isResolving = false;
 
   double get _multiplier =>
       DuelCalculator.getMultiplierForRound(widget.roundNumber);
@@ -56,13 +55,12 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _remainingSeconds = 60;
     _startCountdown();
-    _simulateOpponentBehavior();
+    _listenToOpponentGuess();
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _opponentSimTimer?.cancel();
     super.dispose();
   }
 
@@ -80,19 +78,27 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _simulateOpponentBehavior() {
-    // In GeoGuessr, opponent submits a guess between 12 and 35 seconds
-    final delay = 12 + math.Random().nextInt(20);
-    _opponentSimTimer = Timer(Duration(seconds: delay), () {
-      if (!mounted) return;
-      setState(() {
-        _opponentHasGuessed = true;
-      });
-      // If player also guessed, immediately resolve
-      if (_playerHasGuessed) {
-        _resolveRound();
-      }
-    });
+  void _listenToOpponentGuess() {
+    FirebaseDuelService.instance.listenToOpponentGuess(
+      matchId: widget.matchId,
+      roundNumber: widget.roundNumber,
+      onOpponentGuessed: () {
+        if (!mounted) return;
+        setState(() {
+          _opponentHasGuessed = true;
+        });
+
+        // Fast forward timer or resolve immediately if both guessed
+        if (_playerHasGuessed) {
+          _resolveRound();
+        } else if (_remainingSeconds > 15) {
+          // GeoGuessr mechanic: when opponent guesses, timer goes down to 15s
+          setState(() {
+            _remainingSeconds = 15;
+          });
+        }
+      },
+    );
   }
 
   void _onPlayerConfirmGuess(GeoPoint guess) {
@@ -102,23 +108,34 @@ class _GameScreenState extends State<GameScreen> {
       _playerGuess = guess;
     });
 
-    // If opponent already guessed, or after a short delay (1.2s), resolve round
+    // If opponent already guessed, we resolve
     if (_opponentHasGuessed) {
       _resolveRound();
     } else {
-      // Give opponent a few seconds to finish or trigger immediate resolution
-      Timer(const Duration(milliseconds: 1400), () {
-        if (mounted) {
-          _opponentHasGuessed = true;
-          _resolveRound();
-        }
-      });
+      // Initiate submit but don't finish screen until opponent guesses
+      FirebaseDuelService.instance
+          .submitGuess(
+            matchId: widget.matchId,
+            roundNumber: widget.roundNumber,
+            playerGuess: _playerGuess,
+            location: widget.location,
+            playerHealth: widget.player.health,
+            opponentHealth: widget.opponent.health,
+            multiplier: _multiplier,
+          )
+          .then((result) {
+            if (mounted && !_isResolving) {
+              _isResolving = true;
+              widget.onRoundFinished(result);
+            }
+          });
     }
   }
 
   Future<void> _resolveRound() async {
+    if (_isResolving) return;
+    _isResolving = true;
     _countdownTimer?.cancel();
-    _opponentSimTimer?.cancel();
 
     final result = await FirebaseDuelService.instance.submitGuess(
       matchId: widget.matchId,
@@ -134,7 +151,6 @@ class _GameScreenState extends State<GameScreen> {
       widget.onRoundFinished(result);
     }
   }
-
   void _confirmForfeit() {
     showDialog(
       context: context,
@@ -147,7 +163,10 @@ class _GameScreenState extends State<GameScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Продолжить игру', style: TextStyle(color: AtlasColors.ink)),
+            child: const Text(
+              'Продолжить игру',
+              style: TextStyle(color: AtlasColors.ink),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -213,7 +232,10 @@ class _GameScreenState extends State<GameScreen> {
                 dark: true,
                 solid: widget.solid,
                 radius: 20,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -229,6 +251,43 @@ class _GameScreenState extends State<GameScreen> {
                     Flexible(
                       child: Text(
                         'Ответ принят! Ожидаем соперника...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          if (_opponentHasGuessed && !_playerHasGuessed)
+            Align(
+              alignment: Alignment.center,
+              child: GlassContainer(
+                dark: true,
+                solid: widget.solid,
+                radius: 20,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: Icon(Icons.warning, color: Colors.amber, size: 20),
+                    ),
+                    SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        'Соперник дал ответ! Поторопитесь!',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
