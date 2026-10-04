@@ -49,6 +49,16 @@ class MockDuelService implements IDuelService {
   void cancelMatchmaking() {}
 
   @override
+  void listenToOpponentGuess({
+    required String matchId,
+    required int roundNumber,
+    required void Function() onOpponentGuessed,
+  }) {
+    // do nothing
+  }
+
+
+  @override
   Future<DuelRoundResult> submitGuess({
     required String matchId,
     required int roundNumber,
