@@ -10,7 +10,7 @@ import 'package:geographic_duel/domain/models/geo_point.dart' as domain;
 import 'package:geographic_duel/data/firebase/firebase_duel_service.dart';
 import 'dart:async';
 
-class MockDuelService implements IDuelService {
+class MockDuelService extends IDuelService {
   PlayerState? _currentUser;
   bool shouldDelayMatchmaking = false;
 

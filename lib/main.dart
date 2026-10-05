@@ -3,6 +3,7 @@ import 'core/theme/atlas_theme.dart';
 import 'domain/models/player_state.dart';
 import 'domain/models/round_result.dart';
 import 'data/locations_catalog.dart';
+import 'domain/models/location_item.dart';
 import 'data/firebase/firebase_duel_service.dart';
 import 'features/lobby/lobby_screen.dart';
 import 'features/matchmaking/matchmaking_screen.dart';
@@ -14,10 +15,17 @@ import 'features/profile/profile_screen.dart';
 import 'features/widgets/glass_container.dart';
 import 'features/splash/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization notice: $e');
+  }
   runApp(const GeographicDuelApp());
 }
 
@@ -68,6 +76,7 @@ class _DuelShellState extends State<DuelShell> {
   String _matchId = '';
   int _roundNumber = 1;
   DuelRoundResult? _lastRoundResult;
+  LocationItem _currentLocation = LocationsCatalog.items.first;
 
   @override
   void initState() {
@@ -99,17 +108,79 @@ class _DuelShellState extends State<DuelShell> {
     FirebaseDuelService.instance.startMatchmaking(
       onMatchFound: (matchId, opponent) {
         if (!mounted || !_inMatchmaking) return;
+
         setState(() {
           _matchId = matchId;
           _opponent = opponent;
           _roundNumber = 1;
           _player.health = 6000;
           _opponent!.health = 6000;
+          _currentLocation = LocationsCatalog.getForRound(1);
           _inMatchmaking = false;
           _inGame = true;
           _inRoundResult = false;
           _inMatchResult = false;
         });
+      },
+    );
+  }
+
+  void _createRoomDuel() async {
+    setState(() => _inMatchmaking = true);
+    final code = await FirebaseDuelService.instance.createRoom(
+      onMatchFound: (matchId, opponent) {
+        if (!mounted) return;
+        setState(() {
+          _matchId = matchId;
+          _opponent = opponent;
+          _roundNumber = 1;
+          _player.health = 6000;
+          _opponent!.health = 6000;
+          _currentLocation = LocationsCatalog.getForRound(1);
+          _inMatchmaking = false;
+          _inGame = true;
+          _inRoundResult = false;
+          _inMatchResult = false;
+        });
+      },
+    );
+
+    if (code != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Комната создана! Код: $code (сообщите другу)'),
+          backgroundColor: AtlasColors.green,
+          duration: const Duration(seconds: 15),
+        ),
+      );
+    }
+  }
+
+  void _joinRoomDuel(String code) {
+    setState(() => _inMatchmaking = true);
+    FirebaseDuelService.instance.joinRoom(
+      roomCode: code,
+      onMatchFound: (matchId, opponent) {
+        if (!mounted) return;
+        setState(() {
+          _matchId = matchId;
+          _opponent = opponent;
+          _roundNumber = 1;
+          _player.health = 6000;
+          _opponent!.health = 6000;
+          _currentLocation = LocationsCatalog.getForRound(1);
+          _inMatchmaking = false;
+          _inGame = true;
+          _inRoundResult = false;
+          _inMatchResult = false;
+        });
+      },
+      onError: (err) {
+        if (!mounted) return;
+        setState(() => _inMatchmaking = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err), backgroundColor: Colors.red),
+        );
       },
     );
   }
@@ -139,6 +210,7 @@ class _DuelShellState extends State<DuelShell> {
   void _nextRound() {
     setState(() {
       _roundNumber++;
+      _currentLocation = LocationsCatalog.getForRound(_roundNumber);
       _inRoundResult = false;
       _inGame = true;
     });
@@ -183,7 +255,7 @@ class _DuelShellState extends State<DuelShell> {
         matchId: _matchId,
         player: _player,
         opponent: _opponent!,
-        location: LocationsCatalog.getForRound(_roundNumber),
+        location: _currentLocation,
         roundNumber: _roundNumber,
         solid: _solid,
         onRoundFinished: _onRoundFinished,
@@ -273,6 +345,8 @@ class _DuelShellState extends State<DuelShell> {
       case AppTab.duel:
         return LobbyScreen(
           onStartDuel: _startMatchmaking,
+          onCreateRoom: _createRoomDuel,
+          onJoinRoom: _joinRoomDuel,
           playerRating: _player.rating,
           solid: _solid,
         );

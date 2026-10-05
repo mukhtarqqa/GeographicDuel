@@ -63,6 +63,46 @@ class LocationsCatalog {
       imageAsset: 'assets/scene.jpg',
       simulatedOpponentOffset: GeoPoint(6.1, 7.8),
     ),
+    LocationItem(
+      id: 'sydney_harbour',
+      title: 'Сидней · Залив Порт-Джексон',
+      country: 'Австралия',
+      region: 'Новый Южный Уэльс',
+      description: 'Знаменитая океанская гавань, эвкалиптовое побережье и южное полушарие.',
+      coordinates: GeoPoint(-33.8568, 151.2153),
+      imageAsset: 'assets/scene.jpg',
+      simulatedOpponentOffset: GeoPoint(-5.4, 6.2),
+    ),
+    LocationItem(
+      id: 'cairo_giza',
+      title: 'Каир · Плато Гиза',
+      country: 'Египет',
+      region: 'Северная Африка',
+      description: 'Песчаное пустынное плато у долины Нила с тысячелетней историей.',
+      coordinates: GeoPoint(29.9792, 31.1342),
+      imageAsset: 'assets/scene.jpg',
+      simulatedOpponentOffset: GeoPoint(4.2, -3.9),
+    ),
+    LocationItem(
+      id: 'new_york_manhattan',
+      title: 'Нью-Йорк · Манхэттен',
+      country: 'США',
+      region: 'Северная Америка',
+      description: 'Знаменитые улицы с небоскребами, желтыми такси и Центральным парком.',
+      coordinates: GeoPoint(40.7829, -73.9654),
+      imageAsset: 'assets/scene.jpg',
+      simulatedOpponentOffset: GeoPoint(3.1, -4.5),
+    ),
+    LocationItem(
+      id: 'london_westminster',
+      title: 'Лондон · Вестминстер',
+      country: 'Великобритания',
+      region: 'Европа',
+      description: 'Историческая набережная Темзы, викторианская архитектура и туманная атмосфера.',
+      coordinates: GeoPoint(51.5007, -0.1246),
+      imageAsset: 'assets/scene.jpg',
+      simulatedOpponentOffset: GeoPoint(-2.5, 3.8),
+    ),
   ];
 
   static LocationItem getById(String id) =>
@@ -71,5 +111,19 @@ class LocationsCatalog {
   static LocationItem getForRound(int roundNumber) {
     final index = (roundNumber - 1) % items.length;
     return items[index];
+  }
+
+  static List<LocationItem> getMatchLocations({int count = 5, int? seed}) {
+    final list = List<LocationItem>.from(items);
+    if (seed != null) {
+      // Deterministic pseudo-shuffle for multiplayer synchronization
+      for (int i = list.length - 1; i > 0; i--) {
+        final j = (seed * 37 + i * 19) % (i + 1);
+        final temp = list[i];
+        list[i] = list[j];
+        list[j] = temp;
+      }
+    }
+    return list.take(count).toList();
   }
 }
