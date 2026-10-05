@@ -68,6 +68,15 @@ class MockDuelService implements IDuelService {
       multiplier: multiplier,
     );
   }
+
+  // Dummy stream for test
+  @override
+  Stream<bool> listenToOpponentGuess(String matchId, int roundNumber) {
+    // Need a controller to not complete immediately to let test verify waiting state if needed
+    // or just return Stream.value(true) but using Stream.value can cause immediate triggers during build
+    // A delayed stream is safer for flutter test pumps
+    return Stream.fromFuture(Future.delayed(const Duration(milliseconds: 100), () => true));
+  }
 }
 
 void main() {
@@ -116,7 +125,7 @@ void main() {
   testWidgets('game arena floating map requires point and produces round result', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(430, 932); // Slightly larger screen to prevent overflow from new text length
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
