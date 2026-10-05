@@ -9,3 +9,6 @@ ios/.symlinks/
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
 *.log
+# Widget Preview related
+.widget_preview/
+server/node_modules/

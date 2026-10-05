@@ -44,6 +44,7 @@ class _GameScreenState extends State<GameScreen> {
   late int _remainingSeconds;
   Timer? _countdownTimer;
   Timer? _opponentSimTimer;
+  StreamSubscription? _opponentGuessedSub;
   bool _playerHasGuessed = false;
   bool _opponentHasGuessed = false;
   GeoPoint? _playerGuess;
@@ -56,6 +57,22 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _remainingSeconds = 60;
     _startCountdown();
+
+    // Listen to real server / backend opponent guesses
+    _opponentGuessedSub = FirebaseDuelService.instance.onOpponentGuessed.listen((round) {
+      if (round == widget.roundNumber && mounted) {
+        setState(() {
+          _opponentHasGuessed = true;
+          if (_remainingSeconds > 15) {
+            _remainingSeconds = 15;
+          }
+        });
+        if (_playerHasGuessed) {
+          _resolveRound();
+        }
+      }
+    });
+
     _simulateOpponentBehavior();
   }
 
@@ -63,6 +80,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _countdownTimer?.cancel();
     _opponentSimTimer?.cancel();
+    _opponentGuessedSub?.cancel();
     super.dispose();
   }
 
@@ -236,6 +254,34 @@ class _GameScreenState extends State<GameScreen> {
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 4b. Alert banner if opponent guessed first
+          if (_opponentHasGuessed && !_playerHasGuessed)
+            Positioned(
+              top: 86,
+              right: 16,
+              child: GlassContainer(
+                dark: true,
+                solid: widget.solid,
+                radius: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 16, color: AtlasColors.rust),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Соперник сделал выбор! ($_remainingSeconds с)',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
