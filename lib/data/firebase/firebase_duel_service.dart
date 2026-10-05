@@ -69,6 +69,7 @@ class FirebaseDuelService implements IDuelService {
   Function(String matchId, PlayerState opponent)? _onMatchFoundCallback;
   Function(String error)? _onRoomErrorCallback;
   Completer<DuelRoundResult>? _roundResultCompleter;
+  Completer<String?>? _roomCreatedCompleter;
   LocationItem? _activeLocation;
   int _activeRoundNumber = 1;
 
@@ -221,6 +222,13 @@ class FirebaseDuelService implements IDuelService {
           _onMatchFoundCallback?.call(matchId, opponent);
           break;
 
+        case 'room_created':
+          final roomCode = data['roomCode'] as String?;
+          if (_roomCreatedCompleter != null && !_roomCreatedCompleter!.isCompleted) {
+            _roomCreatedCompleter!.complete(roomCode);
+          }
+          break;
+
         case 'room_error':
           final msg = data['message'] as String? ?? 'Ошибка комнаты';
           _onRoomErrorCallback?.call(msg);
@@ -316,19 +324,11 @@ class FirebaseDuelService implements IDuelService {
     final user = await getCurrentUser();
     if (user == null) return null;
 
-    final completer = Completer<String?>();
+    final isUp = await checkServerAvailability();
+    if (!isUp) return null;
 
+    _roomCreatedCompleter = Completer<String?>();
     _connectWebSocket();
-    StreamSubscription? sub;
-    sub = _wsChannel?.stream.listen((message) {
-      try {
-        final data = jsonDecode(message as String) as Map<String, dynamic>;
-        if (data['type'] == 'room_created') {
-          sub?.cancel();
-          completer.complete(data['roomCode'] as String?);
-        }
-      } catch (_) {}
-    });
 
     _wsChannel?.sink.add(jsonEncode({
       'type': 'create_room',
@@ -339,10 +339,10 @@ class FirebaseDuelService implements IDuelService {
       },
     }));
 
-    return completer.future.timeout(const Duration(seconds: 4), onTimeout: () {
-      sub?.cancel();
-      return null;
-    });
+    return _roomCreatedCompleter!.future.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => null,
+    );
   }
 
   @override
@@ -356,6 +356,12 @@ class FirebaseDuelService implements IDuelService {
     _onRoomErrorCallback = onError;
     final user = await getCurrentUser();
     if (user == null) return;
+
+    final isUp = await checkServerAvailability();
+    if (!isUp) {
+      onError('WebSocket сервер не запущен на порту 8088. Запустите: npm start в папке server');
+      return;
+    }
 
     _connectWebSocket();
     _wsChannel?.sink.add(jsonEncode({
