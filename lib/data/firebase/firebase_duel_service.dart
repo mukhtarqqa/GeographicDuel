@@ -72,6 +72,8 @@ class FirebaseDuelService implements IDuelService {
   Completer<String?>? _roomCreatedCompleter;
   LocationItem? _activeLocation;
   int _activeRoundNumber = 1;
+  StreamSubscription<DocumentSnapshot>? _firebaseMatchSubscription;
+  StreamSubscription<DocumentSnapshot>? _firebaseTicketSubscription;
 
   final _opponentGuessedController = StreamController<int>.broadcast();
   @override
@@ -432,7 +434,7 @@ class FirebaseDuelService implements IDuelService {
             rating: doc.data()['rating'] as int,
             health: 6000,
           );
-          onMatchFound(matchId, opponent);
+          _listenToFirebaseMatch(matchId, user.id, onMatchFound, opponent);
           return;
         }
       }
@@ -444,15 +446,144 @@ class FirebaseDuelService implements IDuelService {
         'name': user.name,
         'rating': user.rating,
       });
+
+      // Listen for when we get matched
+      _firebaseTicketSubscription?.cancel();
+      _firebaseTicketSubscription = ticketRef.snapshots().listen((snapshot) {
+        if (!snapshot.exists) return;
+        final data = snapshot.data();
+        if (data != null && data['status'] == 'matched' && data['matchId'] != null) {
+          final matchId = data['matchId'] as String;
+          // Get opponent data from match
+          firestore.collection('matches').doc(matchId).get().then((matchDoc) {
+            if (matchDoc.exists) {
+              final matchData = matchDoc.data()!;
+              final isPlayer1 = matchData['player1'] == user.id;
+              final opponent = PlayerState(
+                id: isPlayer1 ? matchData['player2'] : matchData['player1'],
+                name: isPlayer1 ? matchData['player2Name'] : matchData['player1Name'],
+                rating: isPlayer1 ? matchData['player2Rating'] : matchData['player1Rating'],
+                health: matchData['player2Health'] as int? ?? 6000,
+              );
+              _listenToFirebaseMatch(matchId, user.id, onMatchFound, opponent);
+              // Clear our ticket
+              ticketRef.delete();
+              _firebaseTicketSubscription?.cancel();
+            }
+          });
+        }
+      });
     } catch (_) {
       _startBotMatchmaking(onMatchFound);
     }
+  }
+
+  void _listenToFirebaseMatch(String matchId, String userId, Function(String matchId, PlayerState opponent) onMatchFound, PlayerState opponent) {
+    onMatchFound(matchId, opponent);
+
+    _firebaseMatchSubscription?.cancel();
+    _firebaseMatchSubscription = _firestore?.collection('matches').doc(matchId).snapshots().listen((snapshot) {
+      if (!snapshot.exists) return;
+      final data = snapshot.data()!;
+      final isPlayer1 = data['player1'] == userId;
+
+      final guesses = data['guesses'] as Map<String, dynamic>? ?? {};
+
+      // Iterate through guesses for active round instead of currentRound field because currentRound is shared.
+      // Alternatively, we use _activeRoundNumber from the local state.
+      final targetRound = _activeRoundNumber;
+      final targetRoundData = guesses[targetRound.toString()] as Map<String, dynamic>?;
+
+      if (targetRoundData != null) {
+        final opponentGuess = isPlayer1 ? targetRoundData['player2'] : targetRoundData['player1'];
+        if (opponentGuess != null) {
+           _opponentGuessedController.add(targetRound);
+        }
+
+        final myGuess = isPlayer1 ? targetRoundData['player1'] : targetRoundData['player2'];
+
+        // If both have guessed
+        if (myGuess != null && opponentGuess != null && _roundResultCompleter != null && !_roundResultCompleter!.isCompleted) {
+          domain.GeoPoint? pGuess;
+          if (myGuess['latitude'] != null) {
+            pGuess = domain.GeoPoint((myGuess['latitude'] as num).toDouble(), (myGuess['longitude'] as num).toDouble());
+          }
+          domain.GeoPoint? oGuess;
+          if (opponentGuess['latitude'] != null) {
+            oGuess = domain.GeoPoint((opponentGuess['latitude'] as num).toDouble(), (opponentGuess['longitude'] as num).toDouble());
+          }
+
+          // Calculate damage locally
+          final loc = _activeLocation!;
+          double d1 = 20000;
+          double d2 = 20000;
+
+          double calcDist(double lat1, double lon1, double lat2, double lon2) {
+            final R = 6371;
+            final dLat = (lat2 - lat1) * math.pi / 180;
+            final dLon = (lon2 - lon1) * math.pi / 180;
+            final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+                math.cos(lat1 * math.pi / 180) * math.cos(lat2 * math.pi / 180) *
+                math.sin(dLon / 2) * math.sin(dLon / 2);
+            final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+            return R * c;
+          }
+
+          if (pGuess != null) {
+             d1 = calcDist(loc.coordinates.latitude, loc.coordinates.longitude, pGuess.latitude, pGuess.longitude);
+          }
+          if (oGuess != null) {
+             d2 = calcDist(loc.coordinates.latitude, loc.coordinates.longitude, oGuess.latitude, oGuess.longitude);
+          }
+
+          final multiplier = DuelCalculator.getMultiplierForRound(targetRound);
+          final pScore = DuelCalculator.calculateScore(d1);
+          final oScore = DuelCalculator.calculateScore(d2);
+          final damage = DuelCalculator.calculateDamage(
+            playerScore: pScore,
+            opponentScore: oScore,
+            multiplier: multiplier
+          );
+
+          int pHealth = isPlayer1 ? (data['player1Health'] as int? ?? 6000) : (data['player2Health'] as int? ?? 6000);
+          int oHealth = isPlayer1 ? (data['player2Health'] as int? ?? 6000) : (data['player1Health'] as int? ?? 6000);
+
+          if (d1 < d2) {
+            oHealth = math.max(0, oHealth - damage);
+          } else if (d2 < d1) {
+            pHealth = math.max(0, pHealth - damage);
+          }
+
+          // Player 1 commits the calculated health state and advances round
+          if (isPlayer1) {
+             _firestore?.collection('matches').doc(matchId).update({
+                'player1Health': pHealth,
+                'player2Health': oHealth,
+                'currentRound': targetRound + 1,
+             });
+          }
+
+          final result = DuelRoundResult(
+            roundNumber: targetRound,
+            location: loc,
+            playerGuess: pGuess,
+            opponentGuess: oGuess,
+            playerHealthRemaining: pHealth,
+            opponentHealthRemaining: oHealth,
+            multiplier: multiplier,
+          );
+          _roundResultCompleter!.complete(result);
+        }
+      }
+    });
   }
 
   @override
   void cancelMatchmaking() {
     _wsChannel?.sink.add(jsonEncode({'type': 'cancel_queue'}));
     _disconnectWebSocket();
+    _firebaseMatchSubscription?.cancel();
+    _firebaseTicketSubscription?.cancel();
     _onMatchFoundCallback = null;
     _onRoomErrorCallback = null;
 
@@ -502,7 +633,51 @@ class FirebaseDuelService implements IDuelService {
       );
     }
 
-    // 2. Offline / Smart AI Bot Mode
+    // 2. If using Firebase mode
+    if (activeBackendMode == BackendMode.firebase && !matchId.startsWith('match_bot_') && _firestore != null && _currentUser != null) {
+       _roundResultCompleter = Completer<DuelRoundResult>();
+
+       final matchRef = _firestore!.collection('matches').doc(matchId);
+
+       try {
+         final doc = await matchRef.get();
+         if (doc.exists) {
+           final isPlayer1 = doc.data()!['player1'] == _currentUser!.id;
+           final playerKey = isPlayer1 ? 'player1' : 'player2';
+
+           final guessData = playerGuess != null ? {
+             'latitude': playerGuess.latitude,
+             'longitude': playerGuess.longitude,
+           } : {'skipped': true};
+
+           await matchRef.set({
+             'guesses': {
+               roundNumber.toString(): {
+                 playerKey: guessData
+               }
+             }
+           }, SetOptions(merge: true));
+         }
+
+         return _roundResultCompleter!.future.timeout(
+           const Duration(seconds: 20),
+           onTimeout: () {
+             return _generateDeterministicResult(
+               roundNumber: roundNumber,
+               playerGuess: playerGuess,
+               location: location,
+               playerHealth: playerHealth,
+               opponentHealth: opponentHealth,
+               multiplier: multiplier,
+             );
+           },
+         );
+       } catch (e) {
+         debugPrint('Firebase submit guess error: $e');
+       }
+    }
+
+    // 3. Offline / Smart AI Bot Mode
     return _generateDeterministicResult(
       roundNumber: roundNumber,
       playerGuess: playerGuess,
