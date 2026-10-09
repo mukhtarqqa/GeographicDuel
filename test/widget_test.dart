@@ -87,6 +87,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+
     mockService.shouldDelayMatchmaking = true;
 
     await tester.pumpWidget(const GeographicDuelApp(testMode: true));
@@ -94,7 +97,7 @@ void main() {
 
     expect(find.text('Узнайте мир.\nНа глаз.'), findsOneWidget);
 
-    await tester.tap(find.text('Начать дуэль'));
+    await tester.tap(find.text('Быстрая дуэль'));
     await tester.pump();
     expect(find.text('Мир на двоих.'), findsOneWidget);
 
@@ -102,7 +105,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pumpAndSettle();
-    expect(find.text('Начать дуэль'), findsOneWidget);
+    expect(find.text('Быстрая дуэль'), findsOneWidget);
 
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
@@ -121,13 +124,16 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+
     mockService.shouldDelayMatchmaking = false;
 
     await tester.pumpWidget(const GeographicDuelApp(testMode: true));
     await tester.pumpAndSettle();
 
     // Start duel and wait for matchmaking
-    await tester.tap(find.text('Начать дуэль'));
+    await tester.tap(find.text('Быстрая дуэль'));
     await tester.pump(const Duration(milliseconds: 10));
     await tester.pumpAndSettle();
 
@@ -166,6 +172,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
 
     await tester.pumpWidget(const GeographicDuelApp(testMode: true));
     await tester.pumpAndSettle();
