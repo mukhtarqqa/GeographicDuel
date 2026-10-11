@@ -1,0 +1,12 @@
+{
+  "name": "geographic-duel-server",
+  "version": "1.0.0",
+  "description": "Real-time multiplayer and matchmaking backend for Geographic Duel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

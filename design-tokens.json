@@ -1,0 +1,33 @@
+{
+  "name": "Geographic Duel / Light Atlas",
+  "version": "0.1.0",
+  "status": "design-proposal",
+  "colors": {
+    "paper": "#F4F3ED",
+    "ink": "#233D35",
+    "secondaryText": "#64746C",
+    "accent": "#315E4C",
+    "opponent": "#AD633E",
+    "mapWater": "#E5EBE6",
+    "mapLand": "#C7D1C0",
+    "mapTarget": "#E9EF9C"
+  },
+  "spacing": {"unit": 4, "screenInset": 24, "controlGap": 12},
+  "radii": {"sheet": 32, "map": 20, "capsule": 999},
+  "typography": {
+    "uiFamily": "platform system sans-serif",
+    "editorialPrototypeFamily": "Georgia",
+    "hero": 44,
+    "screenTitle": 32,
+    "body": 17,
+    "caption": 12
+  },
+  "glass": {"blur": 20, "densityPercent": 63, "reducedTransparencyFallback": "#E7ECDF"},
+  "motion": {"sheetDurationMs": 260, "reducedMotion": "instant"},
+  "targets": {"iosMinimumPt": 44, "androidMinimumDp": 48},
+  "notes": [
+    "Prototype values; verify contrast, text scaling and native rendering on devices.",
+    "Product theme is intentionally light per user preference.",
+    "Custom glass style does not imply native Apple Liquid Glass."
+  ]
+}

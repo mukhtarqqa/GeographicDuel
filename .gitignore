@@ -1,0 +1,16 @@
+.dart_tool/
+.flutter-plugins*
+build/
+*.iml
+.idea/
+.artifacts/
+test_firebase/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+*.log
+# Widget Preview related
+.widget_preview/
+server/node_modules/
