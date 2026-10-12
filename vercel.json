@@ -2,6 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "outputDirectory": "public",
+  "buildCommand": "echo 'Pre-compiled Flutter web bundle ready in public/'",
   "routes": [
     {
       "src": "/(.*)",
