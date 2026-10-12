@@ -48,7 +48,7 @@ class ScoreCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            distanceKm == null ? 'Нет ответа' : '${distanceKm!.round()} км',
+            distanceKm == null ? 'Жауап жоқ' : '${distanceKm!.round()} км',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -57,7 +57,7 @@ class ScoreCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '$score очк.',
+            '$score ұпай',
             style: const TextStyle(
               fontSize: 12,
               color: AtlasColors.muted,

@@ -8,7 +8,7 @@ import 'widgets/score_card.dart';
 import 'widgets/health_overview.dart';
 import 'widgets/damage_banner.dart';
 
-class RoundResultScreen extends StatelessWidget {
+class RoundResultScreen extends StatefulWidget {
   const RoundResultScreen({
     super.key,
     required this.result,
@@ -26,7 +26,17 @@ class RoundResultScreen extends StatelessWidget {
   final VoidCallback onFinishMatch;
   final bool solid;
 
-  bool get isMatchOver => player.health <= 0 || opponent.health <= 0;
+  @override
+  State<RoundResultScreen> createState() => _RoundResultScreenState();
+}
+
+class _RoundResultScreenState extends State<RoundResultScreen> {
+  bool _waitingOpponent = false;
+
+  bool get isMatchOver =>
+      widget.player.health <= 0 ||
+      widget.opponent.health <= 0 ||
+      widget.result.roundNumber >= 10;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +49,7 @@ class RoundResultScreen extends StatelessWidget {
             children: [
               // Round Eyebrow
               Text(
-                'РАУНД 0${result.roundNumber} · РЕЗУЛЬТАТ',
+                'РАУНД 0${widget.result.roundNumber} · НӘТИЖЕСІ',
                 style: const TextStyle(
                   fontSize: 11,
                   letterSpacing: 2.0,
@@ -51,7 +61,7 @@ class RoundResultScreen extends StatelessWidget {
 
               // Title
               Text(
-                result.summaryTitle,
+                widget.result.summaryTitle,
                 textAlign: TextAlign.center,
                 style: AtlasTheme.editorial(28),
               ),
@@ -59,7 +69,7 @@ class RoundResultScreen extends StatelessWidget {
 
               // Actual Location details
               Text(
-                '${result.location.title} · ${result.location.country}',
+                '${widget.result.location.title} · ${widget.result.location.country}',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -81,9 +91,9 @@ class RoundResultScreen extends StatelessWidget {
                   child: Stack(
                     children: [
                       AtlasMap(
-                        selected: result.playerGuess,
-                        target: result.location.coordinates,
-                        opponent: result.opponentGuess,
+                        selected: widget.result.playerGuess,
+                        target: widget.result.location.coordinates,
+                        opponent: widget.result.opponentGuess,
                       ),
                       // Legend pill
                       Positioned(
@@ -101,11 +111,11 @@ class RoundResultScreen extends StatelessWidget {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _LegendDot(color: AtlasColors.green, label: 'Вы'),
+                              _LegendDot(color: Color(0xff52c41a), label: 'Дұрыс орын'),
                               SizedBox(width: 8),
-                              _LegendDot(color: AtlasColors.rust, label: 'Соперник'),
+                              _LegendDot(color: AtlasColors.green, label: 'Сіз'),
                               SizedBox(width: 8),
-                              _LegendDot(color: AtlasColors.gold, label: 'Цель'),
+                              _LegendDot(color: AtlasColors.rust, label: 'Қарсылас'),
                             ],
                           ),
                         ),
@@ -114,36 +124,27 @@ class RoundResultScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // Scores Comparison Grid
+              // Score Breakdown Cards
               Row(
                 children: [
                   Expanded(
                     child: ScoreCard(
-                      playerName: player.name,
-                      distanceKm: result.playerDistance,
-                      score: result.playerScore,
-                      isWinner: result.playerWon,
+                      playerName: widget.player.name,
+                      distanceKm: widget.result.playerDistanceKm,
+                      score: widget.result.playerScore,
+                      isWinner: widget.result.playerWon,
                       color: AtlasColors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'VS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AtlasColors.muted,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ScoreCard(
-                      playerName: opponent.name,
-                      distanceKm: result.opponentDistance,
-                      score: result.opponentScore,
-                      isWinner: result.opponentWon,
+                      playerName: widget.opponent.name,
+                      distanceKm: widget.result.opponentDistanceKm,
+                      score: widget.result.opponentScore,
+                      isWinner: widget.result.opponentWon,
                       color: AtlasColors.rust,
                     ),
                   ),
@@ -152,26 +153,41 @@ class RoundResultScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               // Damage & Multiplier Banner
-              DamageBanner(result: result),
+              DamageBanner(result: widget.result),
               const SizedBox(height: 18),
 
               // Updated Health Bars Status
               HealthOverview(
-                playerName: player.name,
-                playerHealth: player.health,
-                opponentName: opponent.name,
-                opponentHealth: opponent.health,
+                playerName: widget.player.name,
+                playerHealth: widget.player.health,
+                opponentName: widget.opponent.name,
+                opponentHealth: widget.opponent.health,
               ),
               const SizedBox(height: 24),
 
               // Main CTA Button
               PrimaryButton(
                 label: isMatchOver
-                    ? 'ПОДВЕСТИ ИТОГИ МАТЧА'
-                    : 'СЛЕДУЮЩИЙ РАУНД (${result.roundNumber + 1})',
-                icon: Icons.arrow_forward,
-                accentColor: isMatchOver ? AtlasColors.rust : AtlasColors.green,
-                onPressed: isMatchOver ? onFinishMatch : onNextRound,
+                    ? 'МАТЧТЫ ҚОРЫТЫНДЫЛАУ'
+                    : (_waitingOpponent
+                        ? 'Қарсыласты күтудеміз...'
+                        : 'КЕЛЕСІ РАУНД (${widget.result.roundNumber + 1})'),
+                icon: isMatchOver
+                    ? Icons.emoji_events_outlined
+                    : (_waitingOpponent ? Icons.hourglass_top : Icons.arrow_forward),
+                accentColor: isMatchOver
+                    ? AtlasColors.rust
+                    : (_waitingOpponent ? AtlasColors.muted : AtlasColors.green),
+                onPressed: _waitingOpponent
+                    ? null
+                    : () {
+                        if (isMatchOver) {
+                          widget.onFinishMatch();
+                        } else {
+                          setState(() => _waitingOpponent = true);
+                          widget.onNextRound();
+                        }
+                      },
               ),
             ],
           ),

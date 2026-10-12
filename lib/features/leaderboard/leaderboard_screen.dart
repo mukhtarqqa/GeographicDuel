@@ -59,7 +59,7 @@ class LeaderboardScreen extends StatelessWidget {
                 final currentUserId = AuthService.instance.currentUser?.uid;
 
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
                   itemCount: players.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {

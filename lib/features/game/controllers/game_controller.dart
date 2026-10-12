@@ -37,6 +37,9 @@ class GameController extends ChangeNotifier {
   bool _isGuessing = false;
   bool get isGuessing => _isGuessing;
 
+  bool _hasSubmitted = false;
+  bool get hasSubmitted => _hasSubmitted;
+
   domain.GeoPoint? _playerGuess;
   domain.GeoPoint? get playerGuess => _playerGuess;
 
@@ -52,6 +55,7 @@ class GameController extends ChangeNotifier {
     _timeRemaining = 60;
     _isRoundActive = true;
     _isGuessing = false;
+    _hasSubmitted = false;
     _playerGuess = null;
     _opponentHasGuessed = false;
 
@@ -62,14 +66,11 @@ class GameController extends ChangeNotifier {
     _opponentGuessSub = FirebaseDuelService.instance.onOpponentGuessed.listen((round) {
       if (round == _roundNumber) {
         _opponentHasGuessed = true;
+        // GeoGuessr 15-second panic timer when opponent submits first
         if (_timeRemaining > 15) {
           _timeRemaining = 15;
         }
         notifyListeners();
-        
-        if (_playerGuess != null) {
-          submitGuess();
-        }
       }
     });
 
@@ -80,39 +81,26 @@ class GameController extends ChangeNotifier {
     if (_timeRemaining > 0 && _isRoundActive) {
       _timeRemaining--;
       if (_timeRemaining <= 0) {
-        submitGuess(); // Auto-submit when time runs out
+        // Auto-submit when countdown hits zero
+        submitGuess();
       }
       notifyListeners();
-    } else {
+    } else if (!_isRoundActive) {
       t.cancel();
     }
   }
 
   void setGuess(domain.GeoPoint guess) {
-    if (!_isRoundActive || _isGuessing) return;
+    if (!_isRoundActive || _hasSubmitted) return;
     _playerGuess = guess;
     notifyListeners();
-    
-    // If opponent already guessed, or after a short delay (1.2s), resolve round
-    if (_opponentHasGuessed) {
-      submitGuess();
-    } else {
-      // Give opponent a few seconds to finish or trigger immediate resolution
-      Timer(const Duration(milliseconds: 1400), () {
-        if (!_isGuessing) {
-          _opponentHasGuessed = true;
-          submitGuess();
-        }
-      });
-    }
   }
 
   Future<void> submitGuess() async {
-    if (!_isRoundActive || _isGuessing || _currentLocation == null) return;
+    if (!_isRoundActive || _hasSubmitted || _currentLocation == null) return;
 
+    _hasSubmitted = true;
     _isGuessing = true;
-    _isRoundActive = false;
-    _timer?.cancel();
     notifyListeners();
 
     try {
@@ -126,11 +114,13 @@ class GameController extends ChangeNotifier {
         multiplier: DuelCalculator.getMultiplierForRound(_roundNumber),
       );
 
+      _isRoundActive = false;
+      _timer?.cancel();
+      notifyListeners();
+
       onRoundFinished(result);
     } catch (e) {
       debugPrint('Error submitting guess: $e');
-      // On error, trigger a forfeit or just continue with zero score
-      onForfeit();
     }
   }
 

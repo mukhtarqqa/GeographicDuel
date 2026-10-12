@@ -84,7 +84,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                 const SizedBox(height: 36),
 
                 const Text(
-                  'Мир на двоих.',
+                  'Екі ойыншыға арналған әлем.',
                   style: TextStyle(
                     fontSize: 12,
                     letterSpacing: 2,
@@ -95,14 +95,14 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                 const SizedBox(height: 8),
 
                 Text(
-                  'Ищем достойного соперника...',
+                  'Лайықты қарсылас ізделуде...',
                   textAlign: TextAlign.center,
                   style: AtlasTheme.editorial(28),
                 ),
                 const SizedBox(height: 12),
 
                 const Text(
-                  'Подбор по рейтингу Elo и географическому региону',
+                  'Elo рейтингі және географиялық аймақ бойынша сұрыптау',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -121,7 +121,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen>
                     ),
                   ),
                   icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Отменить поиск'),
+                  label: const Text('Іздеуді тоқтату'),
                   onPressed: widget.onCancel,
                 ),
               ],

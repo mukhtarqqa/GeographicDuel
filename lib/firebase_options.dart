@@ -36,29 +36,20 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
       case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
       default:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions are not supported for this platform.',
-        );
+        return web;
     }
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'DUMMY_API_KEY_WEB',
-    appId: '1:1234567890:web:abcdef123456',
-    messagingSenderId: '1234567890',
+    apiKey: 'AIzaSyA_-PUh5E87I92mm2IutFiREfHZI01_A54',
+    appId: '1:550442348231:web:1430c5e11b0058468698e2',
+    messagingSenderId: '550442348231',
     projectId: 'geographic-duel',
     authDomain: 'geographic-duel.firebaseapp.com',
     storageBucket: 'geographic-duel.firebasestorage.app',
+    measurementId: 'G-Y55ZVV3RNH',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

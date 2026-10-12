@@ -79,7 +79,7 @@ class PrimaryButton extends StatelessWidget {
           color: onPressed == null
               ? (light ? Colors.white38 : AtlasColors.line)
               : bg,
-          borderRadius: BorderRadius.circular(16), // Изменил закругления (раньше было 999)
+          borderRadius: BorderRadius.circular(16),
           boxShadow: onPressed == null
               ? null
               : [
@@ -94,9 +94,9 @@ class PrimaryButton extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: isLoading ? null : onPressed,
-            borderRadius: BorderRadius.circular(16), // Совпадает с контейнером
+            borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16), // Увеличил отступы для более солидного вида
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -117,8 +117,8 @@ class PrimaryButton extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 15, // Чуть увеличил шрифт
-                          fontWeight: FontWeight.w700, // Сделал жирнее
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 0.3,
                           color: onPressed == null ? AtlasColors.muted : fg,
                         ),
@@ -128,7 +128,7 @@ class PrimaryButton extends StatelessWidget {
                       const SizedBox(width: 8),
                       Icon(
                         icon,
-                        size: 20, // Увеличил иконку
+                        size: 20,
                         color: onPressed == null ? AtlasColors.muted : fg,
                       ),
                     ],

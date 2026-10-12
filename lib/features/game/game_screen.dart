@@ -107,7 +107,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasPlayerGuessed = _controller.playerGuess != null;
+    final hasPlayerGuessed = _controller.hasSubmitted;
     final hasOpponentGuessed = _controller.opponentHasGuessed;
     final remainingSeconds = _controller.timeRemaining;
     final multiplier = DuelCalculator.getMultiplierForRound(widget.roundNumber);
@@ -118,39 +118,72 @@ class _GameScreenState extends State<GameScreen> {
         children: [
           // 1. Fullscreen interactive panorama / 360 photo
           PanoramaViewer(
+            imageUrl: widget.location.imageUrl,
             imageAsset: widget.location.imageAsset,
             solid: widget.solid,
           ),
 
-          // 2. Top Header HUD with Health, Round, Multiplier and Timer
+          // 2. Top Header HUD + Action controls (Exit button & Opponent alert) in a safe non-overlapping layout
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: DuelTopHud(
-                player: widget.player,
-                opponent: widget.opponent,
-                roundNumber: widget.roundNumber,
-                multiplier: multiplier,
-                remainingSeconds: remainingSeconds,
-                solid: widget.solid,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DuelTopHud(
+                    player: widget.player,
+                    opponent: widget.opponent,
+                    roundNumber: widget.roundNumber,
+                    multiplier: multiplier,
+                    remainingSeconds: remainingSeconds,
+                    solid: widget.solid,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Exit / Forfeit Button (Safely below HUD)
+                        GlassButton(
+                          icon: Icons.close,
+                          label: 'Матчтан шығу',
+                          size: 38,
+                          solid: widget.solid,
+                          onPressed: _confirmForfeit,
+                        ),
+
+                        // Alert banner if opponent guessed first
+                        if (hasOpponentGuessed && !hasPlayerGuessed)
+                          GlassContainer(
+                            dark: true,
+                            solid: widget.solid,
+                            radius: 14,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.timer_outlined, size: 14, color: AtlasColors.rust),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Қарсылас таңдады! ($remainingSeconds с)',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // 3. Exit / Forfeit Button (Top-left below HUD)
-          Positioned(
-            top: 86,
-            left: 16,
-            child: GlassButton(
-              icon: Icons.close,
-              label: 'Матчтан шығу',
-              size: 42,
-              solid: widget.solid,
-              onPressed: _confirmForfeit,
-            ),
-          ),
-
-          // 4. Waiting indicator if player has confirmed their point
+          // 3. Waiting indicator if player has confirmed their point
           if (hasPlayerGuessed && !hasOpponentGuessed)
             Align(
               alignment: Alignment.center,
@@ -188,49 +221,23 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
 
-          // 4b. Alert banner if opponent guessed first
-          if (hasOpponentGuessed && !hasPlayerGuessed)
-            Positioned(
-              top: 86,
-              right: 16,
-              child: GlassContainer(
-                dark: true,
-                solid: widget.solid,
-                radius: 16,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.timer_outlined, size: 16, color: AtlasColors.rust),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Қарсылас таңдау жасады! ($remainingSeconds с)',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // 5. Floating Expandable Mini-Map in bottom right corner
+          // 4. Floating Expandable Mini-Map at bottom
           Positioned(
-            bottom: 110,
+            bottom: 12,
             right: 0,
             left: 0,
-            child: Align(
-              alignment: Alignment.bottomRight,
-              child: FloatingGuessMap(
-                initialGuess: _controller.playerGuess,
-                opponentHasGuessed: hasOpponentGuessed,
-                solid: widget.solid,
-                onGuessConfirmed: (guess) {
-                  _controller.setGuess(guess);
-                  _controller.submitGuess();
-                },
+            child: SafeArea(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: FloatingGuessMap(
+                  initialGuess: _controller.playerGuess,
+                  opponentHasGuessed: hasOpponentGuessed,
+                  solid: widget.solid,
+                  onGuessConfirmed: (guess) {
+                    _controller.setGuess(guess);
+                    _controller.submitGuess();
+                  },
+                ),
               ),
             ),
           ),

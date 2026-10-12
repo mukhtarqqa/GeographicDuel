@@ -179,14 +179,15 @@ class _FloatingGuessMapState extends State<FloatingGuessMap> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  PrimaryButton(
-                    label: _selectedPoint == null ? 'ОРЫНДЫ ТАҢДАҢЫЗ' : 'ЖАУАП БЕРУ',
-                    icon: Icons.check_circle_outline,
-                    accentColor: AtlasColors.green,
-                    onPressed: _selectedPoint == null
-                        ? null
-                        : () => widget.onGuessConfirmed(_selectedPoint!),
+                  Flexible(
+                    child: PrimaryButton(
+                      label: _selectedPoint == null ? 'Белгі қойыңыз' : 'Жауап беру',
+                      icon: Icons.check_circle_outline,
+                      accentColor: AtlasColors.green,
+                      onPressed: _selectedPoint == null
+                          ? null
+                          : () => widget.onGuessConfirmed(_selectedPoint!),
+                    ),
                   ),
                 ],
               ),
@@ -278,7 +279,7 @@ class _FloatingGuessMapState extends State<FloatingGuessMap> {
               _mode == MapSizeMode.fullscreen ? Icons.close_fullscreen : Icons.fullscreen,
               size: 20,
             ),
-            tooltip: _mode == MapSizeMode.fullscreen ? 'Кирейту' : 'Толық экранға',
+            tooltip: _mode == MapSizeMode.fullscreen ? 'Кішірейту' : 'Толық экранға',
             constraints: const BoxConstraints(),
             padding: const EdgeInsets.symmetric(horizontal: 4),
             onPressed: _toggleSize,

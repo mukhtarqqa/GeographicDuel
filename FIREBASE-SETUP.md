@@ -49,15 +49,3 @@ flutterfire configure
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
 ```
-
----
-
-## 3. Запуск Realtime WebSocket сервера (Мультиплеер без Firebase)
-
-Для игры вдвоем на одном компьютере (в двух вкладках браузера) или по локальной сети:
-```bash
-# В терминале:
-cd server
-npm start
-```
-Сервер запустится на `http://localhost:8088` и `ws://localhost:8088`. Приложение автоматически подключится к нему!

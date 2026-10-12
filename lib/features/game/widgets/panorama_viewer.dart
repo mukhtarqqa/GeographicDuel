@@ -5,11 +5,13 @@ import '../../widgets/glass_container.dart';
 class PanoramaViewer extends StatefulWidget {
   const PanoramaViewer({
     super.key,
-    required this.imageAsset,
+    this.imageAsset = 'assets/scene.jpg',
+    this.imageUrl = '',
     this.solid = false,
   });
 
   final String imageAsset;
+  final String imageUrl;
   final bool solid;
 
   @override
@@ -28,6 +30,68 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
       _panY = 0.0;
       _scale = 1.0;
     });
+  }
+
+  Widget _buildImage() {
+    final hasNetworkUrl = widget.imageUrl.isNotEmpty && widget.imageUrl.startsWith('http');
+
+    if (hasNetworkUrl) {
+      return Image.network(
+        widget.imageUrl,
+        fit: BoxFit.cover,
+        alignment: Alignment(_panX, _panY),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: const Color(0xff1b2622),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Панорама жүктелуде...',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        errorBuilder: (_, error, stack) => _buildFallbackImage(),
+      );
+    }
+
+    return _buildFallbackImage();
+  }
+
+  Widget _buildFallbackImage() {
+    return Image.asset(
+      widget.imageAsset,
+      fit: BoxFit.cover,
+      alignment: Alignment(_panX, _panY),
+      errorBuilder: (_, error, stack) => Container(
+        color: const Color(0xff43524b),
+        child: const Center(
+          child: Text(
+            'Панораманы жүктеу мүмкін болмады',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -53,20 +117,7 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
             children: [
               Transform.scale(
                 scale: _scale,
-                child: Image.asset(
-                  widget.imageAsset,
-                  fit: BoxFit.cover,
-                  alignment: Alignment(_panX, _panY),
-                  errorBuilder: (_, error, stack) => const ColoredBox(
-                    color: Color(0xff43524b),
-                    child: Center(
-                      child: Text(
-                        'Не удалось загрузить панораму',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  ),
-                ),
+                child: _buildImage(),
               ),
 
               // Subtle Vignette Gradient
@@ -94,7 +145,7 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
           right: 16,
           child: Semantics(
             button: true,
-            label: 'Сбросить ориентацию на север',
+            label: 'Солтүстікке бағыттау',
             child: GlassContainer(
               dark: true,
               solid: widget.solid,
@@ -114,32 +165,6 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        ),
-
-        // Hint overlay that fades out
-        Positioned(
-          bottom: 24,
-          left: 16,
-          child: IgnorePointer(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.touch_app_outlined, size: 14, color: Colors.white70),
-                  SizedBox(width: 5),
-                  Text(
-                    'Вращайте и приближайте панораму',
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
               ),
             ),
           ),

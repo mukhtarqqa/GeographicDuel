@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/atlas_theme.dart';
 import '../../domain/models/player_state.dart';
+import '../../domain/logic/duel_calculator.dart';
 import '../widgets/primary_button.dart';
 
 class MatchResultScreen extends StatelessWidget {
@@ -23,7 +24,11 @@ class MatchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ratingDiff = playerWon ? 24 : -18;
+    final ratingDiff = DuelCalculator.calculateEloChange(
+      playerRating: player.rating,
+      opponentRating: opponent.rating,
+      playerWon: playerWon,
+    );
 
     return Scaffold(
       backgroundColor: AtlasColors.paper,

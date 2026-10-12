@@ -38,7 +38,7 @@ class _DuelShellState extends State<DuelShell> {
   // Active Match Data
   PlayerState _player = PlayerState(
     id: 'local_user',
-    name: 'Загрузка...',
+    name: 'Жүктелуде...',
     rating: 1240,
     health: 6000,
   );
@@ -63,7 +63,7 @@ class _DuelShellState extends State<DuelShell> {
     } else {
       _player = PlayerState(
         id: 'local_user',
-        name: 'Исследователь',
+        name: 'Зерттеуші',
         rating: 1240,
         health: 6000,
       );
@@ -76,7 +76,7 @@ class _DuelShellState extends State<DuelShell> {
     });
 
     FirebaseDuelService.instance.startMatchmaking(
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted || !_inMatchmaking) return;
 
         setState(() {
@@ -98,7 +98,7 @@ class _DuelShellState extends State<DuelShell> {
   void _createRoomDuel() async {
     setState(() => _inMatchmaking = true);
     final code = await FirebaseDuelService.instance.createRoom(
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted) return;
         setState(() {
           _matchId = matchId;
@@ -118,7 +118,7 @@ class _DuelShellState extends State<DuelShell> {
     if (code != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Комната создана! Код: $code (сообщите другу)'),
+          content: Text('Бөлме құрылды! Код: $code (досыңызға беріңіз)'),
           backgroundColor: AtlasColors.green,
           duration: const Duration(seconds: 15),
         ),
@@ -130,7 +130,7 @@ class _DuelShellState extends State<DuelShell> {
     setState(() => _inMatchmaking = true);
     FirebaseDuelService.instance.joinRoom(
       roomCode: code,
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted) return;
         setState(() {
           _matchId = matchId;
@@ -349,16 +349,16 @@ class _DuelShellState extends State<DuelShell> {
       selected: isSelected,
       child: InkWell(
         onTap: () => setState(() => _currentTab = tab),
-        borderRadius: BorderRadius.circular(16), // Исправил скругление
+        borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(
             horizontal: isNarrow ? (isSelected ? 10 : 8) : 10,
-            vertical: 8, // Немного увеличил по вертикали
+            vertical: 8,
           ),
           decoration: BoxDecoration(
             color: isSelected ? AtlasColors.green : Colors.transparent,
-            borderRadius: BorderRadius.circular(16), // Исправил скругление
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

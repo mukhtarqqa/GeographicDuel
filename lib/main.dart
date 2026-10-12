@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/theme/atlas_theme.dart';
 import 'domain/models/player_state.dart';
 import 'domain/models/round_result.dart';
@@ -14,6 +17,8 @@ import 'features/leaderboard/leaderboard_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/widgets/glass_container.dart';
 import 'features/splash/splash_screen.dart';
+import 'features/auth/auth_screen.dart';
+import 'services/auth_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -68,20 +73,29 @@ class _DuelShellState extends State<DuelShell> {
   // Active Match Data
   PlayerState _player = PlayerState(
     id: 'local_user',
-    name: 'Загрузка...',
-    rating: 1240,
+    name: 'Ойыншы',
+    rating: 1200,
     health: 6000,
   );
   PlayerState? _opponent;
   String _matchId = '';
   int _roundNumber = 1;
   DuelRoundResult? _lastRoundResult;
+  List<LocationItem> _matchLocations = [];
   LocationItem _currentLocation = LocationsCatalog.items.first;
+
+  StreamSubscription<DocumentSnapshot>? _matchSubscription;
 
   @override
   void initState() {
     super.initState();
     _initUser();
+  }
+
+  @override
+  void dispose() {
+    _matchSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _initUser() async {
@@ -90,14 +104,58 @@ class _DuelShellState extends State<DuelShell> {
       setState(() {
         _player = user;
       });
-    } else {
-      _player = PlayerState(
-        id: 'local_user',
-        name: 'Исследователь',
-        rating: 1240,
-        health: 6000,
-      );
     }
+  }
+
+  void _setupMatch(String matchId, PlayerState opponent, List<LocationItem> locations) {
+    _matchSubscription?.cancel();
+    _matchLocations = locations;
+    _matchId = matchId;
+    _opponent = opponent;
+    _roundNumber = 1;
+    _player.health = 6000;
+    _opponent!.health = 6000;
+    _currentLocation = LocationsCatalog.getForRound(1, matchLocations: _matchLocations);
+    _inMatchmaking = false;
+    _inGame = true;
+    _inRoundResult = false;
+    _inMatchResult = false;
+
+    // Listen to live Firestore match document for synchronized rounds and finish state
+    _matchSubscription = FirebaseDuelService.instance.streamMatch(matchId)?.listen((snapshot) {
+      if (!snapshot.exists || !mounted) return;
+      final data = snapshot.data() as Map<String, dynamic>?;
+      if (data == null) return;
+
+      final isPlayer1 = data['player1'] == _player.id;
+      final myHp = (isPlayer1 ? data['player1Health'] : data['player2Health']) as num?;
+      final oppHp = (isPlayer1 ? data['player2Health'] : data['player1Health']) as num?;
+
+      if (myHp != null) {
+        _player.health = myHp.toInt();
+      }
+      if (oppHp != null && _opponent != null) {
+        _opponent!.health = oppHp.toInt();
+      }
+
+      final status = data['status'] as String? ?? 'playing';
+      if (status == 'finished') {
+        _finishMatch();
+        return;
+      }
+
+      final serverRound = (data['currentRound'] as num?)?.toInt() ?? 1;
+      if (serverRound > _roundNumber) {
+        setState(() {
+          _roundNumber = serverRound;
+          _currentLocation = LocationsCatalog.getForRound(_roundNumber, matchLocations: _matchLocations);
+          _inRoundResult = false;
+          _inGame = true;
+        });
+      }
+    });
+
+    setState(() {});
   }
 
   void _startMatchmaking() {
@@ -106,21 +164,9 @@ class _DuelShellState extends State<DuelShell> {
     });
 
     FirebaseDuelService.instance.startMatchmaking(
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted || !_inMatchmaking) return;
-
-        setState(() {
-          _matchId = matchId;
-          _opponent = opponent;
-          _roundNumber = 1;
-          _player.health = 6000;
-          _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
-          _inMatchmaking = false;
-          _inGame = true;
-          _inRoundResult = false;
-          _inMatchResult = false;
-        });
+        _setupMatch(matchId, opponent, locations);
       },
     );
   }
@@ -128,27 +174,16 @@ class _DuelShellState extends State<DuelShell> {
   void _createRoomDuel() async {
     setState(() => _inMatchmaking = true);
     final code = await FirebaseDuelService.instance.createRoom(
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted) return;
-        setState(() {
-          _matchId = matchId;
-          _opponent = opponent;
-          _roundNumber = 1;
-          _player.health = 6000;
-          _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
-          _inMatchmaking = false;
-          _inGame = true;
-          _inRoundResult = false;
-          _inMatchResult = false;
-        });
+        _setupMatch(matchId, opponent, locations);
       },
     );
 
     if (code != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Комната создана! Код: $code (сообщите другу)'),
+          content: Text('Бөлме құрылды! Код: $code (досыңызға беріңіз)'),
           backgroundColor: AtlasColors.green,
           duration: const Duration(seconds: 15),
         ),
@@ -160,20 +195,9 @@ class _DuelShellState extends State<DuelShell> {
     setState(() => _inMatchmaking = true);
     FirebaseDuelService.instance.joinRoom(
       roomCode: code,
-      onMatchFound: (matchId, opponent) {
+      onMatchFound: (matchId, opponent, locations) {
         if (!mounted) return;
-        setState(() {
-          _matchId = matchId;
-          _opponent = opponent;
-          _roundNumber = 1;
-          _player.health = 6000;
-          _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
-          _inMatchmaking = false;
-          _inGame = true;
-          _inRoundResult = false;
-          _inMatchResult = false;
-        });
+        _setupMatch(matchId, opponent, locations);
       },
       onError: (err) {
         if (!mounted) return;
@@ -187,6 +211,8 @@ class _DuelShellState extends State<DuelShell> {
 
   void _cancelMatchmaking() {
     FirebaseDuelService.instance.cancelMatchmaking();
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
     setState(() {
       _inMatchmaking = false;
     });
@@ -195,12 +221,9 @@ class _DuelShellState extends State<DuelShell> {
   void _onRoundFinished(DuelRoundResult result) {
     setState(() {
       _lastRoundResult = result;
-      // Apply damage to loser
-      if (result.playerWon) {
-        _opponent!.applyDamage(result.damage);
-      } else if (result.opponentWon) {
-        _player.applyDamage(result.damage);
-      }
+      // Sync remaining health from round result
+      _player.health = result.playerHealthRemaining;
+      _opponent?.health = result.opponentHealthRemaining;
 
       _inGame = false;
       _inRoundResult = true;
@@ -208,22 +231,42 @@ class _DuelShellState extends State<DuelShell> {
   }
 
   void _nextRound() {
-    setState(() {
-      _roundNumber++;
-      _currentLocation = LocationsCatalog.getForRound(_roundNumber);
-      _inRoundResult = false;
-      _inGame = true;
-    });
+    if (_roundNumber >= 10 || _player.health <= 0 || (_opponent?.health ?? 0) <= 0) {
+      _finishMatch();
+      return;
+    }
+
+    FirebaseDuelService.instance.signalNextRoundReady(
+      matchId: _matchId,
+      roundNumber: _roundNumber,
+    );
   }
 
-  void _finishMatch() {
+  void _finishMatch() async {
+    if (_inMatchResult) return;
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
+
+    final won = _player.health > (_opponent?.health ?? 0);
+    final eloDelta = await FirebaseDuelService.instance.recordMatchResult(
+      matchId: _matchId,
+      won: won,
+      myRating: _player.rating,
+      oppRating: _opponent?.rating ?? 1200,
+    );
+
+    if (!mounted) return;
     setState(() {
+      _player = _player.copyWith(rating: math.max(100, _player.rating + eloDelta));
+      _inGame = false;
       _inRoundResult = false;
       _inMatchResult = true;
     });
   }
 
   void _forfeitMatch() {
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
     setState(() {
       _inGame = false;
       _inRoundResult = false;
@@ -233,6 +276,8 @@ class _DuelShellState extends State<DuelShell> {
   }
 
   void _resetToLobby() {
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
     setState(() {
       _inMatchmaking = false;
       _inGame = false;
@@ -240,6 +285,19 @@ class _DuelShellState extends State<DuelShell> {
       _inMatchResult = false;
       _player.health = 6000;
     });
+  }
+
+  Future<void> _handleLogout() async {
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
+    await AuthService.instance.signOut();
+    (FirebaseDuelService.instance as FirebaseDuelService).clearSession();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -291,9 +349,19 @@ class _DuelShellState extends State<DuelShell> {
       backgroundColor: AtlasColors.paper,
       body: Stack(
         children: [
-          // Current Tab Page
+          // Current Tab Page with Smooth Transition Animation
           Positioned.fill(
-            child: _buildCurrentTab(),
+            child: AnimatedSwitcher(
+              duration: Duration(milliseconds: _reduceMotion ? 0 : 250),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(_currentTab),
+                child: _buildCurrentTab(),
+              ),
+            ),
           ),
 
           // Floating Glass Bottom Navigation Dock
@@ -349,6 +417,7 @@ class _DuelShellState extends State<DuelShell> {
           onJoinRoom: _joinRoomDuel,
           playerRating: _player.rating,
           solid: _solid,
+          onLogout: _handleLogout,
         );
       case AppTab.leaderboard:
         return const LeaderboardScreen();
@@ -359,6 +428,8 @@ class _DuelShellState extends State<DuelShell> {
           reduceMotion: _reduceMotion,
           onToggleSolid: (v) => setState(() => _solid = v),
           onToggleReduceMotion: (v) => setState(() => _reduceMotion = v),
+          onLogout: _handleLogout,
+          onUserUpdated: _initUser,
         );
     }
   }
@@ -370,8 +441,8 @@ class _DuelShellState extends State<DuelShell> {
     required String label,
   }) {
     final isSelected = _currentTab == tab;
-
-    final isNarrow = MediaQuery.of(context).size.width < 360;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 380;
 
     return Semantics(
       button: true,
@@ -383,7 +454,7 @@ class _DuelShellState extends State<DuelShell> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(
-            horizontal: isNarrow ? (isSelected ? 10 : 8) : 10,
+            horizontal: isNarrow ? (isSelected ? 8 : 6) : 10,
             vertical: 6,
           ),
           decoration: BoxDecoration(
@@ -399,11 +470,11 @@ class _DuelShellState extends State<DuelShell> {
                 color: isSelected ? Colors.white : AtlasColors.ink,
               ),
               if (!isNarrow || isSelected) ...[
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: isNarrow ? 10 : 11,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     color: isSelected ? Colors.white : AtlasColors.ink,
                   ),

@@ -1,43 +1,23 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/player_state.dart';
 
 class MatchmakingService {
   final FirebaseFirestore? firestore;
-  final _random = math.Random();
 
   MatchmakingService({this.firestore});
 
-  void startBotMatchmaking(Function(String matchId, PlayerState opponent) onMatchFound) {
-    // Временно отключили ботов. Всегда ожидаем живого игрока через Firebase.
-    // Если нужно вернуть заглушку, раскомментируйте код ниже:
-    /*
-    final bots = [
-      PlayerState(id: 'bot_marco', name: 'Марко Поло', rating: 1340, health: 6000),
-      PlayerState(id: 'bot_amelia', name: 'Амелия Эрхарт', rating: 1410, health: 6000),
-    ];
-    final selectedBot = bots[_random.nextInt(bots.length)];
-    Timer(const Duration(milliseconds: 1400), () {
-      onMatchFound('match_bot_${DateTime.now().millisecondsSinceEpoch}', selectedBot);
-    });
-    */
-  }
-
+  // Live multiplayer matchmaking via Firestore
   Future<void> startFirebaseMatchmaking(
     PlayerState user, 
     Function(String matchId, PlayerState opponent) onMatchFound
   ) async {
-    if (firestore == null) {
-      startBotMatchmaking(onMatchFound);
-      return;
-    }
+    if (firestore == null) return;
 
     try {
       final queueQuery = await firestore!.collection('matchmaking')
           .where('status', isEqualTo: 'waiting')
-          .orderBy('joinedAt')
-          .limit(1)
+          .limit(5)
           .get();
 
       if (queueQuery.docs.isNotEmpty) {
@@ -81,8 +61,8 @@ class MatchmakingService {
         'name': user.name,
         'rating': user.rating,
       });
-    } catch (_) {
-      startBotMatchmaking(onMatchFound);
+    } catch (e) {
+      // Graceful error handling
     }
   }
 

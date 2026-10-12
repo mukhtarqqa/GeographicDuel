@@ -48,10 +48,10 @@ class DamageBanner extends StatelessWidget {
               Flexible(
                 child: Text(
                   result.isTie
-                      ? 'Урона нет (ничья)'
+                      ? 'Зақым жоқ (тең ойын)'
                       : (result.playerWon
-                          ? 'Урон сопернику:'
-                          : 'Полученный урон:'),
+                          ? 'Қарсыласқа келген зақым:'
+                          : 'Алынған зақым:'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -88,7 +88,7 @@ class DamageBanner extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Множитель урона: ${result.multiplier.toStringAsFixed(1)}x',
+                    'Зақым көбейткіші: ${result.multiplier.toStringAsFixed(1)}x',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,

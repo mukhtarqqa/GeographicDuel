@@ -28,7 +28,7 @@ class GlassButton extends StatelessWidget {
       child: GlassContainer(
         dark: dark,
         solid: solid,
-        radius: 14, // Сделал кнопку квадратной со скругленными углами
+        radius: 14,
         padding: EdgeInsets.zero,
         onTap: onPressed,
         child: SizedBox(

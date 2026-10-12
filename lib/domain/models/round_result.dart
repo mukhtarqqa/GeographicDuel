@@ -59,6 +59,9 @@ class DuelRoundResult {
   final int playerHealthRemaining;
   final int opponentHealthRemaining;
 
+  double? get playerDistanceKm => playerDistance;
+  double? get opponentDistanceKm => opponentDistance;
+
   bool get playerWon => outcome == RoundOutcome.playerWon;
   bool get opponentWon => outcome == RoundOutcome.opponentWon;
   bool get isTie => outcome == RoundOutcome.tie;
@@ -66,11 +69,11 @@ class DuelRoundResult {
   String get summaryTitle {
     switch (outcome) {
       case RoundOutcome.playerWon:
-        return 'Вы оказались ближе!';
+        return 'Сіз дәлірек болдыңыз!';
       case RoundOutcome.opponentWon:
-        return 'Соперник оказался ближе';
+        return 'Қарсылас дәлірек болды';
       case RoundOutcome.tie:
-        return 'Ничья в раунде';
+        return 'Раундтағы тең ойын';
     }
   }
 }
