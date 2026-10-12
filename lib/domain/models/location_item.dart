@@ -10,6 +10,8 @@ class LocationItem {
     this.imageAsset = 'assets/scene.jpg',
     this.region = '',
     this.description = '',
+    this.heading = 0,
+    this.pitch = 0,
     this.simulatedOpponentOffset = const GeoPoint(4.2, 5.1),
   });
 
@@ -21,10 +23,22 @@ class LocationItem {
   final GeoPoint coordinates;
   final String imageUrl;
   final String imageAsset;
+  final int heading;
+  final int pitch;
   final GeoPoint simulatedOpponentOffset;
 
   String get effectiveImage => imageUrl.isNotEmpty ? imageUrl : imageAsset;
   bool get isNetworkImage => imageUrl.isNotEmpty && imageUrl.startsWith('http');
+
+  String get googleStreetViewWebUrl =>
+      'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${coordinates.latitude},${coordinates.longitude}';
+
+  String getGoogleStreetViewEmbedUrl(String apiKey) {
+    if (apiKey.isEmpty) {
+      return 'https://maps.google.com/maps?q=&layer=c&cbll=${coordinates.latitude},${coordinates.longitude}&cbp=11,$heading,0,$pitch,0&output=svembed';
+    }
+    return 'https://www.google.com/maps/embed/v1/streetview?key=$apiKey&location=${coordinates.latitude},${coordinates.longitude}&heading=$heading&pitch=$pitch&fov=90';
+  }
 
   GeoPoint get simulatedOpponentGuess => GeoPoint(
         (coordinates.latitude + simulatedOpponentOffset.latitude)
@@ -42,6 +56,8 @@ class LocationItem {
         'lat': coordinates.latitude,
         'lng': coordinates.longitude,
         'imageUrl': imageUrl,
+        'heading': heading,
+        'pitch': pitch,
       };
 
   factory LocationItem.fromMap(Map<String, dynamic> map) {
@@ -56,6 +72,8 @@ class LocationItem {
         (map['lng'] as num?)?.toDouble() ?? 0.0,
       ),
       imageUrl: map['imageUrl'] as String? ?? '',
+      heading: (map['heading'] as num?)?.toInt() ?? 0,
+      pitch: (map['pitch'] as num?)?.toInt() ?? 0,
     );
   }
 }

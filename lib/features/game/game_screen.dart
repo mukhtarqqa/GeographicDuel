@@ -153,6 +153,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         children: [
           // 1. Fullscreen interactive panorama / 360 photo
           PanoramaViewer(
+            location: widget.location,
             imageUrl: widget.location.imageUrl,
             imageAsset: widget.location.imageAsset,
             solid: widget.solid,

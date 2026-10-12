@@ -33,6 +33,8 @@ class LocationApiService {
       region: 'Астана қаласы',
       description: 'Қазақстан астанасының орталығындағы ұлттық монумент.',
       coordinates: const GeoPoint(51.1283, 71.4305),
+      heading: 10,
+      pitch: 15,
       imageUrl: 'https://images.unsplash.com/photo-1558588942-930faae5a389?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -42,6 +44,8 @@ class LocationApiService {
       region: 'Алматы облысы',
       description: 'Іле Алатауының биік таулы шатқалындағы әлемге әйгілі мұз айдыны.',
       coordinates: const GeoPoint(43.1574, 77.0588),
+      heading: 180,
+      pitch: 10,
       imageUrl: 'https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -51,6 +55,8 @@ class LocationApiService {
       region: 'Алматы облысы',
       description: 'Миллиондаған жылдар бойы жел мен су қашаған табиғи каньон.',
       coordinates: const GeoPoint(43.3512, 79.0818),
+      heading: 90,
+      pitch: -5,
       imageUrl: 'https://images.unsplash.com/photo-1629814696229-37f2d5924765?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -60,6 +66,8 @@ class LocationApiService {
       region: 'Түркістан облысы',
       description: 'XIV ғасырдағы Әмір Темір салған керемет сәулет ескерткіші.',
       coordinates: const GeoPoint(43.2974, 68.2709),
+      heading: 45,
+      pitch: 10,
       imageUrl: 'https://images.unsplash.com/photo-1609137144820-221087d19760?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -69,6 +77,8 @@ class LocationApiService {
       region: 'Ақмола облысы',
       description: 'Көкшетау қыратындағы қайыңды-қарағайлы ормандар мен таңғажайып көлдер.',
       coordinates: const GeoPoint(53.0833, 70.3000),
+      heading: 260,
+      pitch: 5,
       imageUrl: 'https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -78,6 +88,8 @@ class LocationApiService {
       region: 'Алматы облысы',
       description: 'Қарағайлы таулар қоршаған зүбәржат түсті биік тау көлдері.',
       coordinates: const GeoPoint(42.9847, 78.3242),
+      heading: 180,
+      pitch: 0,
       imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80',
     ),
 
@@ -89,6 +101,8 @@ class LocationApiService {
       region: 'Иль-де-Франс',
       description: 'Сена өзенінің жағасында орналасқан әлемдік сәулет туындысы.',
       coordinates: const GeoPoint(48.8584, 2.2945),
+      heading: 320,
+      pitch: 20,
       imageUrl: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -98,6 +112,8 @@ class LocationApiService {
       region: 'Канто',
       description: 'Әлемдегі ең қарбалас әрі жарық диодты экрандары бар жаяу жүргіншілер қиылысы.',
       coordinates: const GeoPoint(35.6595, 139.7005),
+      heading: 45,
+      pitch: 5,
       imageUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -107,6 +123,8 @@ class LocationApiService {
       region: 'Лацио',
       description: 'Ежелгі Рим империясының ең ірі амфитеатры.',
       coordinates: const GeoPoint(41.8902, 12.4922),
+      heading: 120,
+      pitch: 15,
       imageUrl: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -116,6 +134,8 @@ class LocationApiService {
       region: 'Нью-Йорк штаты',
       description: 'Зәулім ғимараттар мен Таймс-сквер орналасқан алып мегаполис.',
       coordinates: const GeoPoint(40.7580, -73.9855),
+      heading: 180,
+      pitch: 15,
       imageUrl: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -125,6 +145,8 @@ class LocationApiService {
       region: 'Оңтүстік-Шығыс',
       description: 'Мұхит жағалауы мен тропикалық джунгли үстіндегі алып монумент.',
       coordinates: const GeoPoint(-22.9519, -43.2105),
+      heading: 0,
+      pitch: 30,
       imageUrl: 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -134,6 +156,8 @@ class LocationApiService {
       region: 'Жаңа Оңтүстік Уэльс',
       description: 'Порт-Джексон шығанағының жағасындағы парустар бейнесіндегі ғимарат.',
       coordinates: const GeoPoint(-33.8568, 151.2153),
+      heading: 200,
+      pitch: 10,
       imageUrl: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -143,6 +167,8 @@ class LocationApiService {
       region: 'Солтүстік Африка',
       description: 'Мыңжылдық тарихы бар ежелгі әлемнің ғажайыбы.',
       coordinates: const GeoPoint(29.9792, 31.1342),
+      heading: 240,
+      pitch: 10,
       imageUrl: 'https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -152,6 +178,8 @@ class LocationApiService {
       region: 'Еуропа',
       description: 'Темза жағалауындағы тарихи парламент ғимараты мен Биг-Бен мұнарасы.',
       coordinates: const GeoPoint(51.5007, -0.1246),
+      heading: 30,
+      pitch: 15,
       imageUrl: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -161,6 +189,8 @@ class LocationApiService {
       region: 'Таяу Шығыс',
       description: 'Шөл далада бой көтерген әлемдегі ең биік зәулім ғимарат.',
       coordinates: const GeoPoint(25.1972, 55.2744),
+      heading: 140,
+      pitch: 35,
       imageUrl: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1600&q=80',
     ),
     LocationItem(
@@ -170,6 +200,8 @@ class LocationApiService {
       region: 'Скандинавия',
       description: 'Арктикалық мұхит пен сұлу құз-жартастар көрінісі.',
       coordinates: const GeoPoint(69.6492, 18.9553),
+      heading: 270,
+      pitch: 0,
       imageUrl: 'https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1600&q=80',
     ),
   ];
