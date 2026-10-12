@@ -102,12 +102,17 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
         // Interactive Gesture Area
         GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onDoubleTap: () {
+            setState(() {
+              _scale = _scale > 1.4 ? 1.0 : 2.2;
+            });
+          },
           onScaleStart: (details) {
             _baseScale = _scale;
           },
           onScaleUpdate: (details) {
             setState(() {
-              _scale = (_baseScale * details.scale).clamp(1.0, 3.2);
+              _scale = (_baseScale * details.scale).clamp(1.0, 3.5);
               _panX = (_panX - details.focalPointDelta.dx * 0.003).clamp(-1.0, 1.0);
               _panY = (_panY - details.focalPointDelta.dy * 0.003).clamp(-0.4, 0.4);
             });
@@ -115,8 +120,10 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Transform.scale(
+              AnimatedScale(
                 scale: _scale,
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOutCubic,
                 child: _buildImage(),
               ),
 
@@ -127,9 +134,9 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0x77000000),
-                      Colors.transparent,
                       Color(0x88000000),
+                      Colors.transparent,
+                      Color(0x99000000),
                     ],
                     stops: [0.0, 0.35, 1.0],
                   ),
@@ -139,34 +146,112 @@ class _PanoramaViewerState extends State<PanoramaViewer> {
           ),
         ),
 
-        // Compass / Reset Bearing Widget
+        // Top Left Exploration Mode Tag
+        Positioned(
+          top: 86,
+          left: 16,
+          child: GlassContainer(
+            dark: true,
+            solid: widget.solid,
+            radius: 14,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.threed_rotation_rounded, size: 14, color: Color(0xff34d399)),
+                SizedBox(width: 5),
+                Text(
+                  '360° Интерактивті шолу',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Right Side Floating Camera & Zoom Controls Column
         Positioned(
           top: 86,
           right: 16,
-          child: Semantics(
-            button: true,
-            label: 'Солтүстікке бағыттау',
-            child: GlassContainer(
-              dark: true,
-              solid: widget.solid,
-              radius: 22,
-              padding: EdgeInsets.zero,
-              onTap: _resetCompass,
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: Center(
-                  child: Transform.rotate(
-                    angle: _panX * math.pi,
-                    child: const Icon(
-                      Icons.navigation,
-                      size: 22,
-                      color: Color(0xffff6b6b),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Compass / Reset Bearing Widget
+              Semantics(
+                button: true,
+                label: 'Солтүстікке бағыттау',
+                child: GlassContainer(
+                  dark: true,
+                  solid: widget.solid,
+                  radius: 20,
+                  padding: EdgeInsets.zero,
+                  onTap: _resetCompass,
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: Transform.rotate(
+                        angle: _panX * math.pi,
+                        child: const Icon(
+                          Icons.navigation,
+                          size: 20,
+                          color: Color(0xfff87171),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 8),
+
+              // Zoom In (+)
+              GlassContainer(
+                dark: true,
+                solid: widget.solid,
+                radius: 18,
+                padding: EdgeInsets.zero,
+                onTap: () {
+                  setState(() {
+                    _scale = (_scale + 0.5).clamp(1.0, 3.5);
+                  });
+                },
+                child: const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Center(
+                    child: Icon(Icons.add, size: 18, color: Colors.white),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              // Zoom Out (-)
+              GlassContainer(
+                dark: true,
+                solid: widget.solid,
+                radius: 18,
+                padding: EdgeInsets.zero,
+                onTap: () {
+                  setState(() {
+                    _scale = (_scale - 0.5).clamp(1.0, 3.5);
+                  });
+                },
+                child: const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Center(
+                    child: Icon(Icons.remove, size: 18, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

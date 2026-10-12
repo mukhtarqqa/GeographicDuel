@@ -351,15 +351,15 @@ class _MapPainter extends CustomPainter {
 
       if (activeGuess != null) {
         route(activeGuess, green);
-        marker(activeGuess, green, 'Вы');
+        marker(activeGuess, green, 'Сіз');
       }
       if (activeOpponent != null) {
         route(activeOpponent, rust);
-        marker(activeOpponent, rust, 'Соперник');
+        marker(activeOpponent, rust, 'Қарсылас');
       }
-      marker(activeTarget, const Color(0xffa1b456), 'Цель', target: true);
+      marker(activeTarget, const Color(0xff52c41a), 'Дұрыс орын', target: true);
     } else {
-      if (selected != null) marker(selected!, green, 'Вы');
+      if (selected != null) marker(selected!, green, 'Сіз');
     }
   }
 
