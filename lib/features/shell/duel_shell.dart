@@ -46,6 +46,7 @@ class _DuelShellState extends State<DuelShell> {
   String _matchId = '';
   int _roundNumber = 1;
   DuelRoundResult? _lastRoundResult;
+  List<LocationItem> _matchLocations = [];
   LocationItem _currentLocation = LocationsCatalog.items.first;
 
   @override
@@ -85,7 +86,8 @@ class _DuelShellState extends State<DuelShell> {
           _roundNumber = 1;
           _player.health = 6000;
           _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
+          _matchLocations = locations;
+          _currentLocation = LocationsCatalog.getForRound(1, matchLocations: _matchLocations);
           _inMatchmaking = false;
           _inGame = true;
           _inRoundResult = false;
@@ -106,7 +108,8 @@ class _DuelShellState extends State<DuelShell> {
           _roundNumber = 1;
           _player.health = 6000;
           _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
+          _matchLocations = locations;
+          _currentLocation = LocationsCatalog.getForRound(1, matchLocations: _matchLocations);
           _inMatchmaking = false;
           _inGame = true;
           _inRoundResult = false;
@@ -138,7 +141,8 @@ class _DuelShellState extends State<DuelShell> {
           _roundNumber = 1;
           _player.health = 6000;
           _opponent!.health = 6000;
-          _currentLocation = LocationsCatalog.getForRound(1);
+          _matchLocations = locations;
+          _currentLocation = LocationsCatalog.getForRound(1, matchLocations: _matchLocations);
           _inMatchmaking = false;
           _inGame = true;
           _inRoundResult = false;
@@ -180,7 +184,7 @@ class _DuelShellState extends State<DuelShell> {
   void _nextRound() {
     setState(() {
       _roundNumber++;
-      _currentLocation = LocationsCatalog.getForRound(_roundNumber);
+      _currentLocation = LocationsCatalog.getForRound(_roundNumber, matchLocations: _matchLocations);
       _inRoundResult = false;
       _inGame = true;
     });

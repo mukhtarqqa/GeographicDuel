@@ -236,6 +236,16 @@ class _DuelShellState extends State<DuelShell> {
       return;
     }
 
+    if (_matchId.startsWith('bot_') || _matchId.startsWith('offline_')) {
+      setState(() {
+        _roundNumber++;
+        _currentLocation = LocationsCatalog.getForRound(_roundNumber, matchLocations: _matchLocations);
+        _inRoundResult = false;
+        _inGame = true;
+      });
+      return;
+    }
+
     FirebaseDuelService.instance.signalNextRoundReady(
       matchId: _matchId,
       roundNumber: _roundNumber,

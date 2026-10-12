@@ -60,6 +60,7 @@ class FirebaseDuelService implements IDuelService {
 
   PlayerState? _currentUser;
   final _random = math.Random();
+  Timer? _botMatchTimer;
 
   StreamSubscription<DocumentSnapshot>? _roomSubscription;
   Function(String matchId, PlayerState opponent, List<LocationItem> locations)? _onMatchFoundCallback;
@@ -160,7 +161,15 @@ class FirebaseDuelService implements IDuelService {
 
     final firestore = _firestore;
     if (firestore == null) {
-      debugPrint('Firestore is not available');
+      final matchId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+      final locations = LocationApiService.instance.generateMatchLocations(count: 10);
+      final opponent = PlayerState(
+        id: 'bot_offline',
+        name: 'Ернар (Алматы)',
+        rating: 1210,
+        health: 6000,
+      );
+      onMatchFound(matchId, opponent, locations);
       return;
     }
 
@@ -180,6 +189,8 @@ class FirebaseDuelService implements IDuelService {
       }
 
       if (oppDoc != null) {
+        _botMatchTimer?.cancel();
+        _botMatchTimer = null;
         final matchId = 'match_${DateTime.now().millisecondsSinceEpoch}';
         final oppData = oppDoc.data() as Map<String, dynamic>;
 
@@ -228,11 +239,50 @@ class FirebaseDuelService implements IDuelService {
         'rating': user.rating,
       });
 
+      // 3. Fallback timer: if no other human enters within 3.5 seconds, auto-match with random bot
+      _botMatchTimer?.cancel();
+      _botMatchTimer = Timer(const Duration(milliseconds: 3500), () async {
+        if (_onMatchFoundCallback == null) return;
+        ticketRef.delete().catchError((_) {});
+        _roomSubscription?.cancel();
+        _roomSubscription = null;
+
+        final botNames = [
+          'Ернар (Алматы)',
+          'Аружан (Астана)',
+          'Данияр (Шымкент)',
+          'Айгерім (Қарағанды)',
+          'Бауыржан (Ақтау)',
+          'Жансая (Павлодар)',
+          'Marco (Рим)',
+          'Yuki (Токио)',
+          'Lucas (Париж)',
+          'Alex (Нью-Йорк)',
+        ];
+        final botName = botNames[_random.nextInt(botNames.length)];
+        final botRating = 1150 + _random.nextInt(200);
+        final matchId = 'bot_${DateTime.now().millisecondsSinceEpoch}';
+        final locations = LocationApiService.instance.generateMatchLocations(count: 10);
+
+        final opponent = PlayerState(
+          id: 'bot_${_random.nextInt(9999)}',
+          name: botName,
+          rating: botRating,
+          health: 6000,
+        );
+
+        final cb = _onMatchFoundCallback;
+        _onMatchFoundCallback = null;
+        cb?.call(matchId, opponent, locations);
+      });
+
       _roomSubscription?.cancel();
       _roomSubscription = ticketRef.snapshots().listen((ticketDoc) async {
         if (!ticketDoc.exists) return;
         final ticketData = ticketDoc.data();
         if (ticketData != null && ticketData['status'] == 'matched' && ticketData['matchId'] != null) {
+          _botMatchTimer?.cancel();
+          _botMatchTimer = null;
           final matchId = ticketData['matchId'] as String;
           final matchDoc = await firestore.collection('matches').doc(matchId).get();
           if (matchDoc.exists) {
@@ -266,6 +316,8 @@ class FirebaseDuelService implements IDuelService {
 
   @override
   void cancelMatchmaking() {
+    _botMatchTimer?.cancel();
+    _botMatchTimer = null;
     _roomSubscription?.cancel();
     _roomSubscription = null;
     _onMatchFoundCallback = null;

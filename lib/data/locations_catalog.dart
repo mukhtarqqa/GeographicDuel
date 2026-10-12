@@ -3,7 +3,7 @@ import 'services/location_api_service.dart';
 
 class LocationsCatalog {
   static List<LocationItem> get items =>
-      LocationApiService.instance.generateMatchLocations(count: 16, seed: 42);
+      LocationApiService.instance.generateMatchLocations(count: 50);
 
   static LocationItem getById(String id) =>
       items.firstWhere((element) => element.id == id, orElse: () => items.first);
